@@ -1,0 +1,78 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "JS Mini Hotel",
+  "projectDescription": "A JavaScript library for managing hotel operations including reservations, check-in/check-out, billing, and reporting.",
+  "theme": "palm",
+  "primaryColor": "#2563EB",
+  "lightColor": "#60A5FA",
+  "darkColor": "#1E40AF",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Core Concepts",
+        "pages": [
+          "concepts/data-structures",
+          "concepts/business-rules",
+          "concepts/validation"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api/hotel-management",
+          "api/reservation-management",
+          "api/check-in-out",
+          "api/reporting"
+        ]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/creating-reservations",
+          "guides/managing-extras",
+          "guides/cancellation-policy",
+          "guides/generating-reports"
+        ]
+      },
+      {
+        "group": "Utilities",
+        "pages": [
+          "utilities/helper-functions",
+          "utilities/validation-functions",
+          "utilities/constants"
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Room availability search with date range validation",
+    "Reservation creation with automatic pricing calculation",
+    "Check-in and check-out workflow management",
+    "Invoice generation with itemized billing",
+    "Flexible cancellation policy with penalty calculation",
+    "Occupancy and revenue reporting",
+    "Guest history tracking",
+    "Extra services management (breakfast, parking, etc.)",
+    "Multi-room type support (single, double, suite)",
+    "Comprehensive date and guest data validation"
+  ],
+  "publicApiSurface": [
+    "createHotel(name, rooms)",
+    "searchAvailableRooms(hotel, checkIn, checkOut, roomType)",
+    "createReservation(hotel, roomNumber, guestData, checkIn, checkOut)",
+    "addExtras(hotel, reservationId, extras)",
+    "checkIn(hotel, reservationId)",
+    "checkOut(hotel, reservationId)",
+    "cancelReservation(hotel, reservationId)",
+    "getOccupancyReport(hotel, date)",
+    "getRevenueReport(hotel, startDate, endDate)",
+    "getGuestHistory(hotel, guestEmail)"
+  ]
+}
