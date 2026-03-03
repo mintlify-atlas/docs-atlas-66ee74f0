@@ -1,0 +1,418 @@
+---
+title: Cancellation Policy
+description: Understand the three-tier cancellation policy, penalty calculations, and how to cancel reservations
+---
+
+The JS Mini Hotel system implements a three-tier cancellation policy based on how far in advance a guest cancels their reservation. This guide explains the policy, penalty calculations, and the cancellation process.
+
+## Three-Tier Cancellation Policy
+
+The cancellation penalty depends on the number of days between the cancellation date and the check-in date:
+
+<CardGroup cols={3}>
+  <Card title="More than 7 days" icon="circle-check" color="#22c55e">
+    **No charge**
+    
+    Free cancellation if you cancel more than 7 days before check-in.
+  </Card>
+  <Card title="3-7 days" icon="circle-exclamation" color="#f59e0b">
+    **50% penalty**
+    
+    Half of the total reservation price is charged.
+  </Card>
+  <Card title="Less than 3 days" icon="circle-xmark" color="#ef4444">
+    **100% penalty**
+    
+    Full reservation price is charged.
+  </Card>
+</CardGroup>
+
+## Penalty Calculation Logic
+
+The cancellation charge is calculated using the `getCancellationCharge()` function:
+
+```js utils.js:186-202
+export function getCancellationCharge(reservation) {
+  const now = Temporal.Now.plainDateISO()
+  if (reservation === undefined) {
+    return
+  }
+  const totalPrice = reservation.totalPrice
+
+  const duration = now.until(Temporal.PlainDate.from(reservation.checkIn))
+
+  if (duration.days < 3) {
+    return totalPrice
+  } else if (duration.days < 8) {
+    return 0.5 * totalPrice
+  } else {
+    return 0
+  }
+}
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Get current date">
+    The function captures the current date using `Temporal.Now.plainDateISO()`
+  </Step>
+
+  <Step title="Calculate days until check-in">
+    It calculates the duration between now and the check-in date:
+    
+    ```js
+    const duration = now.until(Temporal.PlainDate.from(reservation.checkIn))
+    ```
+  </Step>
+
+  <Step title="Apply policy tiers">
+    Based on `duration.days`, it applies the appropriate penalty:
+    
+    - **< 3 days**: Return full price (`totalPrice`)
+    - **3-7 days**: Return half price (`0.5 * totalPrice`)
+    - **> 7 days**: Return zero (`0`)
+  </Step>
+</Steps>
+
+<Note>
+  The `totalPrice` includes both the room charges and any extras that were added to the reservation.
+</Note>
+
+## Cancelling a Reservation
+
+To cancel a reservation, use the `cancelReservation()` function:
+
+```js main.js:222-236
+function cancelReservation(hotel, reservationId) {
+  const reservation = getReservationById(hotel, reservationId)
+  const cancellationCharge = getCancellationCharge(reservation)
+  if (!reservation) {
+    return 'La reserva no existe, no se puede cancelar'
+  }
+
+  const room = getRoomByNumber(hotel, reservation.roomNumber)
+
+  reservation.status = RESERVATION_STATUS.CANCELLED
+  room.status = ROOM_STATUS.AVAILABLE
+  archiveReservation(hotel, reservation)
+
+  return `Cancelación realizada con una penalización de ${cancellationCharge}€`
+}
+```
+
+### What Happens During Cancellation
+
+<Accordion title="Reservation status changes">
+  The reservation status is updated to `'cancelled'`:
+  
+  ```js
+  reservation.status = RESERVATION_STATUS.CANCELLED
+  ```
+</Accordion>
+
+<Accordion title="Room becomes available">
+  The room status is reset to `'available'`:
+  
+  ```js
+  room.status = ROOM_STATUS.AVAILABLE
+  ```
+  
+  This makes the room available for new reservations.
+</Accordion>
+
+<Accordion title="Reservation is archived">
+  The reservation is moved from active reservations to the history:
+  
+  ```js utils.js:142-146
+  export function archiveReservation(hotel, reservation) {
+    hotel.history.push(reservation)
+    deleteReservation(hotel, reservation)
+  }
+  ```
+  
+  This maintains a record of cancelled reservations for reporting purposes.
+</Accordion>
+
+<Accordion title="Penalty is calculated and returned">
+  The function calculates the cancellation charge and returns a confirmation message:
+  
+  ```js
+  return `Cancelación realizada con una penalización de ${cancellationCharge}€`
+  ```
+</Accordion>
+
+## Cancellation Scenarios
+
+Let's walk through different cancellation scenarios with real examples:
+
+### Scenario 1: Early Cancellation (No Penalty)
+
+<CodeGroup>
+```js Setup
+// Today is March 3, 2026
+// Reservation check-in: April 10, 2026
+// Days until check-in: 38 days
+
+const reservation = {
+  id: 'RES-001',
+  roomNumber: 301,
+  guest: { name: 'Ana García', email: 'ana@example.com' },
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-15',
+  nights: 5,
+  totalPrice: 750,
+  status: 'confirmed',
+  extras: []
+}
+```
+
+```js Cancellation
+const result = cancelReservation(hotel, 'RES-001')
+console.log(result)
+// "Cancelación realizada con una penalización de 0€"
+```
+
+```js Calculation
+// Days until check-in: 38
+// 38 > 7, so no penalty
+// Charge: €0
+```
+</CodeGroup>
+
+### Scenario 2: Medium Notice (50% Penalty)
+
+<CodeGroup>
+```js Setup
+// Today is April 5, 2026
+// Reservation check-in: April 10, 2026
+// Days until check-in: 5 days
+
+const reservation = {
+  id: 'RES-002',
+  roomNumber: 201,
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-12',
+  totalPrice: 160, // 2 nights × €80
+  status: 'confirmed'
+}
+```
+
+```js Cancellation
+const result = cancelReservation(hotel, 'RES-002')
+console.log(result)
+// "Cancelación realizada con una penalización de 80€"
+```
+
+```js Calculation
+// Days until check-in: 5
+// 3 ≤ 5 < 8, so 50% penalty
+// Charge: €160 × 0.5 = €80
+```
+</CodeGroup>
+
+### Scenario 3: Late Cancellation (100% Penalty)
+
+<CodeGroup>
+```js Setup
+// Today is April 9, 2026
+// Reservation check-in: April 10, 2026
+// Days until check-in: 1 day
+
+const reservation = {
+  id: 'RES-003',
+  roomNumber: 101,
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-13',
+  totalPrice: 150, // 3 nights × €50
+  status: 'confirmed'
+}
+```
+
+```js Cancellation
+const result = cancelReservation(hotel, 'RES-003')
+console.log(result)
+// "Cancelación realizada con una penalización de 150€"
+```
+
+```js Calculation
+// Days until check-in: 1
+// 1 < 3, so 100% penalty
+// Charge: €150 (full amount)
+```
+</CodeGroup>
+
+### Scenario 4: Cancellation with Extras
+
+<CodeGroup>
+```js Setup
+// Today is April 7, 2026
+// Reservation check-in: April 10, 2026
+// Days until check-in: 3 days
+
+const reservation = {
+  id: 'RES-004',
+  roomNumber: 301,
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-15',
+  nights: 5,
+  totalPrice: 875, // €750 room + €125 extras
+  status: 'confirmed',
+  extras: [
+    { name: 'Breakfast', price: 10, quantity: 5 },
+    { name: 'Parking', price: 15, quantity: 5 }
+  ]
+}
+```
+
+```js Cancellation
+const result = cancelReservation(hotel, 'RES-004')
+console.log(result)
+// "Cancelación realizada con una penalización de 437.5€"
+```
+
+```js Calculation
+// Days until check-in: 3
+// Exactly 3 days falls in the < 8 tier, so 50% penalty
+// Charge: €875 × 0.5 = €437.50
+
+// Note: Extras are included in the penalty calculation
+```
+</CodeGroup>
+
+<Warning>
+  The penalty is calculated on the **total price**, which includes both room charges and extras. Guests cannot get a refund on extras while cancelling the room.
+</Warning>
+
+## Error Handling
+
+The cancellation function handles invalid reservation IDs:
+
+```js
+const result = cancelReservation(hotel, 'RES-INVALID')
+console.log(result)
+// "La reserva no existe, no se puede cancelar"
+```
+
+## Policy Boundary Cases
+
+Pay special attention to these boundary cases:
+
+<Tabs>
+  <Tab title="Exactly 3 days">
+    Cancelling exactly 3 days before check-in:
+    
+    ```js
+    // duration.days = 3
+    // Condition: duration.days < 8 is true (50% penalty)
+    // Result: 50% penalty applied
+    ```
+  </Tab>
+
+  <Tab title="Exactly 7 days">
+    Cancelling exactly 7 days before check-in:
+    
+    ```js
+    // duration.days = 7
+    // Condition: duration.days < 8 is true (50% penalty)
+    // Result: 50% penalty applied
+    ```
+  </Tab>
+
+  <Tab title="Exactly 8 days">
+    Cancelling exactly 8 days before check-in:
+    
+    ```js
+    // duration.days = 8
+    // Condition: duration.days < 8 is false
+    // Goes to else block (no penalty)
+    // Result: No penalty
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  The policy is: **< 3 days = 100%, 3-7 days = 50%, ≥ 8 days = 0%**
+</Tip>
+
+## Complete Cancellation Example
+
+Here's a complete example with logging:
+
+```js main.js:78
+// Original example from source code
+console.log('Reserva cancelada', cancelReservation(hotel, 'RES-001'))
+```
+
+<CodeGroup>
+```js Full Workflow
+// 1. Create a reservation
+const reservation = createReservation(
+  hotel,
+  301,
+  {
+    name: 'Ana García',
+    email: 'ana@example.com',
+    phone: '+34 612345678',
+    dni: '12345678A'
+  },
+  '2026-04-10',
+  '2026-04-15'
+)
+
+console.log('Created:', reservation.id)
+console.log('Total price:', reservation.totalPrice)
+
+// 2. Add extras
+addExtras(hotel, reservation.id, [
+  { name: 'Breakfast', price: 10, quantity: 5 }
+])
+
+console.log('Price with extras:', reservation.totalPrice)
+
+// 3. Cancel the reservation
+const cancellationMessage = cancelReservation(hotel, reservation.id)
+console.log(cancellationMessage)
+
+// 4. Verify cancellation
+const cancelledReservation = getReservationById(hotel, reservation.id)
+console.log('Found in active reservations:', cancelledReservation)
+// undefined (moved to history)
+```
+
+```js Output
+Created: RES-20260403T140000000000000Z-55
+Total price: 750
+Price with extras: 800
+Cancelación realizada con una penalización de 400€
+Found in active reservations: undefined
+```
+</CodeGroup>
+
+## Checking Cancellation Charge Before Cancelling
+
+You can check the cancellation charge without actually cancelling:
+
+```js
+const reservation = getReservationById(hotel, 'RES-001')
+const charge = getCancellationCharge(reservation)
+
+if (charge === 0) {
+  console.log('Free cancellation available')
+  cancelReservation(hotel, 'RES-001')
+} else {
+  console.log(`Cancellation will cost €${charge}`)
+  // Ask user for confirmation before cancelling
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Reservations" icon="calendar-plus" href="/guides/creating-reservations">
+    Learn how to create reservations that can be cancelled
+  </Card>
+  <Card title="Generating Reports" icon="chart-line" href="/guides/generating-reports">
+    View cancelled reservations in guest history reports
+  </Card>
+</CardGroup>

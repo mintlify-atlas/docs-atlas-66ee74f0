@@ -1,80 +1,401 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get started with JS Mini Hotel in under 5 minutes
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will walk you through the essential operations of JS Mini Hotel: creating a hotel, searching for available rooms, making a reservation, and checking in a guest.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  All code examples in this guide are taken directly from the actual implementation in `main.js`.
 </Note>
+
+## Prerequisites
+
+Ensure you have:
+- Node.js installed (for ES6 module support)
+- The JS Mini Hotel source files in your project
+- Basic understanding of JavaScript and ES6 modules
+
+## Step-by-Step Guide
+
+<Steps>
+  <Step title="Import Required Functions and Data">
+    First, import the functions and data you'll need:
+
+    ```javascript
+    import rooms from './data/rooms.json' with { type: 'json' }
+    import {
+      createHotel,
+      searchAvailableRooms,
+      createReservation,
+      addExtras,
+      checkIn,
+      checkOut
+    } from './main.js'
+    ```
+
+    <Tip>
+      The `rooms.json` file contains your room inventory. You can customize this file to match your hotel's actual rooms.
+    </Tip>
+  </Step>
+
+  <Step title="Create Your Hotel">
+    Initialize your hotel with a name and room inventory:
+
+    ```javascript
+    const hotel = createHotel('Overlook Hotel', rooms)
+    console.log(hotel)
+    ```
+
+    **Expected Output:**
+    ```javascript
+    {
+      name: 'Overlook Hotel',
+      rooms: [...], // Array of room objects
+      reservations: [], // Active reservations
+      history: [] // Completed/cancelled reservations
+    }
+    ```
+
+    The hotel object is the central data structure that stores all hotel information.
+  </Step>
+
+  <Step title="Search for Available Rooms">
+    Search for available rooms by date range and room type:
+
+    ```javascript
+    const availableRooms = searchAvailableRooms(
+      hotel,
+      '2026-03-19',
+      '2026-03-19',
+      'single'
+    )
+    console.log('Available: ', availableRooms)
+    ```
+
+    **Expected Output:**
+    ```javascript
+    [
+      {
+        number: 101,
+        type: 'single',
+        pricePerNight: 50,
+        status: 'available',
+        features: ['wifi', 'tv']
+      },
+      // ... other available single rooms
+    ]
+    ```
+
+    <Info>
+      The function automatically filters out rooms that have conflicting reservations for the specified dates.
+    </Info>
+  </Step>
+
+  <Step title="Create a Reservation">
+    Create a new reservation for a guest:
+
+    ```javascript
+    const reservation = createReservation(
+      hotel,
+      301,
+      {
+        name: 'Ana García',
+        email: 'ana@example.com',
+        phone: '+34 612345678',
+        dni: '12345678A',
+      },
+      '2026-04-10',
+      '2026-04-15',
+    )
+    console.log('Reservation: ', reservation)
+    ```
+
+    **Expected Output:**
+    ```javascript
+    {
+      id: 'RES-001',
+      roomNumber: 301,
+      guest: {
+        name: 'Ana García',
+        email: 'ana@example.com',
+        phone: '+34 612345678',
+        dni: '12345678A'
+      },
+      checkIn: '2026-04-10',
+      checkOut: '2026-04-15',
+      nights: 5,
+      totalPrice: 750, // Calculated automatically
+      status: 'confirmed',
+      extras: []
+    }
+    ```
+
+    <Warning>
+      The function validates:
+      - Room exists and is available for those dates
+      - Check-in is not in the past
+      - Check-out is after check-in
+      - Stay is between 1-14 nights
+      - Guest data (email, phone, DNI) format
+    </Warning>
+  </Step>
+
+  <Step title="Add Extra Services (Optional)">
+    Enhance the reservation with additional services:
+
+    ```javascript
+    const updatedReservation = addExtras(hotel, 'RES-001', [
+      { name: 'Breakfast', price: 10, quantity: 5 },
+      { name: 'Parking', price: 15, quantity: 5 },
+    ])
+    console.log('Reserva con extras añadidos', updatedReservation)
+    ```
+
+    **Expected Output:**
+    ```javascript
+    {
+      id: 'RES-001',
+      // ... other reservation fields
+      totalPrice: 875, // 750 + (10*5) + (15*5)
+      extras: [
+        { name: 'Breakfast', price: 10, quantity: 5 },
+        { name: 'Parking', price: 15, quantity: 5 }
+      ]
+    }
+    ```
+
+    The total price is automatically recalculated when extras are added.
+  </Step>
+
+  <Step title="Check In the Guest">
+    When the guest arrives, perform the check-in:
+
+    ```javascript
+    const checkInResult = checkIn(hotel, 'RES-001')
+    console.log(checkInResult)
+    ```
+
+    **Expected Output:**
+    ```
+    El check-in de la reserva RES-001 se hizo correctamente en la habitacion no. 301
+    ```
+
+    **What happens during check-in:**
+    - Reservation status changes to `"checked-in"`
+    - Room status changes to `"occupied"`
+    - Check-in date is updated to today's date
+
+    <Info>
+      Check-in validates that the reservation exists, is confirmed, the check-in date is valid, and the room is available.
+    </Info>
+  </Step>
+</Steps>
+
+## Complete Working Example
+
+Here's a complete example that ties everything together:
+
+<CodeGroup>
+```javascript Full Example
+import rooms from './data/rooms.json' with { type: 'json' }
+import {
+  createHotel,
+  searchAvailableRooms,
+  createReservation,
+  addExtras,
+  checkIn,
+} from './main.js'
+
+// 1. Create hotel
+const hotel = createHotel('Overlook Hotel', rooms)
+
+// 2. Search for available rooms
+const availableRooms = searchAvailableRooms(
+  hotel,
+  '2026-04-10',
+  '2026-04-15',
+  'suite'
+)
+console.log(`Found ${availableRooms.length} available suites`)
+
+// 3. Create a reservation
+const reservation = createReservation(
+  hotel,
+  301,
+  {
+    name: 'Ana García',
+    email: 'ana@example.com',
+    phone: '+34 612345678',
+    dni: '12345678A',
+  },
+  '2026-04-10',
+  '2026-04-15',
+)
+console.log(`Reservation created: ${reservation.id}`)
+console.log(`Total: €${reservation.totalPrice}`)
+
+// 4. Add extras
+addExtras(hotel, reservation.id, [
+  { name: 'Breakfast', price: 10, quantity: 5 },
+  { name: 'Parking', price: 15, quantity: 5 },
+])
+console.log(`New total: €${reservation.totalPrice}`)
+
+// 5. Check in (when guest arrives)
+const checkInMessage = checkIn(hotel, reservation.id)
+console.log(checkInMessage)
+```
+
+```javascript Output
+{
+  name: 'Overlook Hotel',
+  rooms: [...],
+  reservations: [],
+  history: []
+}
+
+Found 2 available suites
+
+Reservation created: RES-001
+Total: €750
+
+New total: €875
+
+El check-in de la reserva RES-001 se hizo correctamente en la habitacion no. 301
+```
+</CodeGroup>
+
+## Additional Operations
+
+### Check Out and Generate Invoice
+
+```javascript
+const invoice = checkOut(hotel, 'RES-001')
+console.log('Invoice', invoice)
+```
+
+This will:
+- Change reservation status to `"checked-out"`
+- Change room status to `"available"`
+- Move reservation from `reservations` to `history`
+- Return a detailed invoice
+
+### Cancel a Reservation
+
+```javascript
+const cancellation = cancelReservation(hotel, 'RES-001')
+console.log('Reserva cancelada', cancellation)
+```
+
+**Output:**
+```
+Cancelación realizada con una penalización de XX€
+```
+
+The penalty is calculated based on how far in advance the cancellation is made.
+
+### Generate Reports
+
+<CodeGroup>
+```javascript Occupancy Report
+const occupancyReport = getOccupancyReport(hotel, '2026-03-22')
+console.log(occupancyReport)
+```
+
+```javascript Revenue Report
+const revenueReport = getRevenueReport(hotel, '2026-01-01', '2026-03-22')
+console.log(revenueReport)
+```
+
+```javascript Guest History
+const guestHistory = getGuestHistory(hotel, 'ana@example.com')
+console.log(guestHistory)
+```
+</CodeGroup>
+
+## Data Structures Reference
+
+<AccordionGroup>
+  <Accordion title="Hotel Object">
+    ```javascript
+    {
+      name: "Hotel Keepcoding",
+      rooms: [...],        // Array of room objects
+      reservations: [...], // Active reservations
+      history: [...]       // Completed/cancelled reservations
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Room Object">
+    ```javascript
+    {
+      number: 101,
+      type: "single",              // "single", "double", "suite"
+      pricePerNight: 50,
+      status: "available",         // "available", "occupied", "maintenance"
+      features: ["wifi", "tv", "minibar"]
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Reservation Object">
+    ```javascript
+    {
+      id: "RES-001",
+      roomNumber: 101,
+      guest: {
+        name: "Ana García",
+        email: "ana@example.com",
+        phone: "+34 612345678",
+        dni: "12345678A"
+      },
+      checkIn: "2026-01-20",
+      checkOut: "2026-01-25",
+      nights: 5,
+      totalPrice: 250,
+      status: "confirmed",        // "confirmed", "checked-in", "checked-out", "cancelled"
+      extras: [
+        { name: "Breakfast", price: 10, quantity: 5 },
+        { name: "Parking", price: 15, quantity: 5 }
+      ]
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/hotel-management"
+  >
+    Explore detailed documentation for all functions
+  </Card>
+  <Card
+    title="Validation Rules"
+    icon="shield-check"
+    href="/concepts/validation"
+  >
+    Learn about data validation and business rules
+  </Card>
+  <Card
+    title="Managing Extras"
+    icon="plus"
+    href="/guides/managing-extras"
+  >
+    Learn how to add extra services to reservations
+  </Card>
+  <Card
+    title="Generating Reports"
+    icon="chart-line"
+    href="/guides/generating-reports"
+  >
+    See how to generate occupancy and revenue reports
+  </Card>
+</CardGroup>

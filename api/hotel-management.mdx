@@ -1,0 +1,177 @@
+---
+title: 'Hotel Management'
+description: 'Functions for creating and managing hotel instances and searching room availability'
+---
+
+## createHotel
+
+Creates and initializes a new hotel object with rooms, reservations, and history.
+
+### Function Signature
+
+```javascript
+function createHotel(name, rooms)
+```
+
+### Parameters
+
+<ParamField path="name" type="string" required>
+  The name of the hotel
+</ParamField>
+
+<ParamField path="rooms" type="array" required>
+  Array of room objects. Each room should contain:
+  - `number` (number): Room number
+  - `type` (string): Room type ('single', 'double', or 'suite')
+  - `pricePerNight` (number): Price per night for the room
+  - `status` (string): Current room status ('available', 'occupied', etc.)
+</ParamField>
+
+### Return Value
+
+<ResponseField name="hotel" type="object">
+  The initialized hotel object
+  
+  <Expandable title="Hotel Object Structure">
+    <ResponseField name="name" type="string">
+      The hotel name
+    </ResponseField>
+    
+    <ResponseField name="rooms" type="array">
+      Array of room objects
+    </ResponseField>
+    
+    <ResponseField name="reservations" type="array">
+      Array of active reservation objects (initialized from reservationsMock)
+    </ResponseField>
+    
+    <ResponseField name="history" type="array">
+      Array of historical reservation objects (initialized from historyMock)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+import rooms from './data/rooms.json' with { type: 'json' }
+
+const hotel = createHotel('Overlook Hotel', rooms)
+console.log(hotel)
+```
+
+### Expected Output
+
+```javascript
+{
+  name: 'Overlook Hotel',
+  rooms: [
+    { number: 101, type: 'single', pricePerNight: 50, status: 'available' },
+    { number: 201, type: 'double', pricePerNight: 80, status: 'available' },
+    // ... more rooms
+  ],
+  reservations: [],
+  history: []
+}
+```
+
+<Note>
+  The hotel object is initialized with mock data for reservations and history from JSON imports.
+</Note>
+
+---
+
+## searchAvailableRooms
+
+Searches for available rooms of a specific type within a given date range.
+
+### Function Signature
+
+```javascript
+function searchAvailableRooms(hotel, checkIn, checkOut, roomType)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object to search within
+</ParamField>
+
+<ParamField path="checkIn" type="string" required>
+  Check-in date in ISO format (e.g., '2026-03-19')
+</ParamField>
+
+<ParamField path="checkOut" type="string" required>
+  Check-out date in ISO format (e.g., '2026-03-22')
+</ParamField>
+
+<ParamField path="roomType" type="string" required>
+  Type of room to search for. Valid values:
+  - `'single'` - Single room
+  - `'double'` - Double room
+  - `'suite'` - Suite room
+</ParamField>
+
+### How It Works
+
+The function performs three filtering steps:
+
+1. **Filter by Type**: Filters all hotel rooms to match the requested `roomType`
+2. **Get Reserved Rooms**: Calls `getReservedRoomsByDate()` to get a Set of room numbers that are reserved (with status 'confirmed') for the specified date range
+3. **Filter Available**: Returns only rooms of the requested type that are NOT in the reserved rooms set
+
+### Return Value
+
+<ResponseField name="availableRooms" type="array">
+  Array of available room objects matching the criteria
+  
+  <Expandable title="Room Object Structure">
+    <ResponseField name="number" type="number">
+      Room number
+    </ResponseField>
+    
+    <ResponseField name="type" type="string">
+      Room type ('single', 'double', or 'suite')
+    </ResponseField>
+    
+    <ResponseField name="pricePerNight" type="number">
+      Price per night
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Current room status
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+const availableRooms = searchAvailableRooms(
+  hotel, 
+  '2026-03-19', 
+  '2026-03-22', 
+  'single'
+)
+
+console.log('Available:', availableRooms)
+```
+
+### Expected Output
+
+```javascript
+[
+  { number: 101, type: 'single', pricePerNight: 50, status: 'available' },
+  { number: 102, type: 'single', pricePerNight: 50, status: 'available' },
+  { number: 105, type: 'single', pricePerNight: 55, status: 'available' }
+]
+```
+
+<Note>
+  Only rooms with status 'confirmed' in reservations are considered as reserved. Cancelled or checked-out reservations don't affect availability.
+</Note>
+
+### Related Functions
+
+This function uses the following helper functions from `utils.js`:
+- `getReservedRoomsByDate()` - Returns a Set of room numbers reserved for the date range (main.js:109)

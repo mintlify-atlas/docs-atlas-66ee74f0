@@ -1,0 +1,396 @@
+---
+title: 'Reporting'
+description: 'Functions for generating occupancy reports, revenue analytics, and guest history'
+---
+
+## getOccupancyReport
+
+Generates a comprehensive occupancy report for a specific date, including total rooms, occupied/available breakdown, and statistics by room type.
+
+### Function Signature
+
+```javascript
+function getOccupancyReport(hotel, date)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object to generate the report for
+</ParamField>
+
+<ParamField path="date" type="string" required>
+  The date to check occupancy for in ISO format (e.g., '2026-03-22'). Can be past, present, or future.
+</ParamField>
+
+### How It Works
+
+1. **Combines Data**: Creates a clone of both active reservations and historical reservations (main.js:242-245)
+2. **Filters by Date**: Uses `isDateInRange()` to find all reservations where the specified date falls within check-in and check-out dates (main.js:250, validation.js:32-40)
+3. **Gets Room Details**: Maps reservation room numbers to full room objects (main.js:251)
+4. **Calculates Metrics**: Computes total, occupied, available counts and percentage
+5. **Breaks Down by Type**: Groups statistics by room type (single, double, suite)
+
+### Return Value
+
+<ResponseField name="report" type="object">
+  Detailed occupancy report object
+  
+  <Expandable title="Report Structure">
+    <ResponseField name="date" type="string">
+      The date of the report in ISO string format
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total number of rooms in the hotel
+    </ResponseField>
+    
+    <ResponseField name="occupied" type="number">
+      Number of rooms occupied on this date
+    </ResponseField>
+    
+    <ResponseField name="available" type="number">
+      Number of rooms available on this date (total - occupied)
+    </ResponseField>
+    
+    <ResponseField name="percentage" type="number">
+      Occupancy percentage, rounded down using `Math.floor()`
+    </ResponseField>
+    
+    <ResponseField name="byType" type="object">
+      Breakdown by room type:
+      
+      <Expandable title="Room Type Statistics">
+        <ResponseField name="single" type="object">
+          - `total` (number): Total single rooms
+          - `occupied` (number): Occupied single rooms
+        </ResponseField>
+        
+        <ResponseField name="double" type="object">
+          - `total` (number): Total double rooms
+          - `occupied` (number): Occupied double rooms
+        </ResponseField>
+        
+        <ResponseField name="suite" type="object">
+          - `total` (number): Total suite rooms
+          - `occupied` (number): Occupied suite rooms
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+const occupancyReport = getOccupancyReport(hotel, '2026-03-22')
+console.log(occupancyReport)
+```
+
+### Expected Output
+
+```javascript
+{
+  date: '2026-03-22',
+  total: 20,
+  occupied: 12,
+  available: 8,
+  percentage: 60,  // Math.floor((12 / 20) * 100)
+  byType: {
+    single: {
+      total: 8,
+      occupied: 5
+    },
+    double: {
+      total: 8,
+      occupied: 5
+    },
+    suite: {
+      total: 4,
+      occupied: 2
+    }
+  }
+}
+```
+
+<Note>
+  The report includes both active reservations and historical data, making it accurate for past, present, and future dates.
+</Note>
+
+<Warning>
+  The percentage is calculated using `Math.floor()`, so 60.8% becomes 60%.
+</Warning>
+
+### Related Functions
+
+- `isDateInRange()` - Checks if date falls within reservation dates (validation.js:32-40)
+- `getRoomByNumber()` - Gets room details (utils.js:18-21)
+- `getRoomsByType()` - Filters rooms by type (utils.js:33-35)
+
+---
+
+## getRevenueReport
+
+Calculates total revenue for a date range, including room charges and extras, with reservation count.
+
+### Function Signature
+
+```javascript
+function getRevenueReport(hotel, startDate, endDate)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object to generate the revenue report for
+</ParamField>
+
+<ParamField path="startDate" type="string" required>
+  Start date of the reporting period in ISO format (e.g., '2026-01-01')
+</ParamField>
+
+<ParamField path="endDate" type="string" required>
+  End date of the reporting period in ISO format (e.g., '2026-03-22')
+</ParamField>
+
+### How Revenue is Calculated
+
+1. **Combines Data**: Gets all reservations + history using `getReservationsPlusHistory()` (main.js:283, utils.js:207-209)
+2. **Filters by Range**: Uses `isRangeInRange()` to find reservations where BOTH check-in and check-out fall within the specified date range (main.js:288-290, validation.js:42-51)
+3. **Excludes Cancelled**: Filters out reservations with status `'cancelled'` (main.js:294)
+4. **Calculates Extras**: Sums all extras using `getExtrasPrice()` for each reservation (main.js:306-308, utils.js:122-127)
+5. **Calculates Total**: Sums all `totalPrice` values from valid reservations (main.js:309-311)
+
+### Return Value
+
+<ResponseField name="report" type="object">
+  Revenue report with financial breakdown
+  
+  <Expandable title="Report Structure">
+    <ResponseField name="period" type="string">
+      Date range string in format `"{startDate} to {endDate}"`
+    </ResponseField>
+    
+    <ResponseField name="rooms" type="number">
+      Total number of rooms in the hotel (for context)
+    </ResponseField>
+    
+    <ResponseField name="extras" type="number">
+      Total revenue from extras (breakfast, parking, etc.)
+    </ResponseField>
+    
+    <ResponseField name="total" type="number">
+      Total revenue including room charges and extras
+    </ResponseField>
+    
+    <ResponseField name="reservations" type="number">
+      Number of reservations in this period (excluding cancelled)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+const revenueReport = getRevenueReport(hotel, '2026-01-01', '2026-03-22')
+console.log(revenueReport)
+```
+
+### Expected Output
+
+```javascript
+{
+  period: '2026-01-01 to 2026-03-22',
+  rooms: 20,
+  extras: 450,      // Sum of all extras from reservations in range
+  total: 5450,      // Total revenue (room charges + extras)
+  reservations: 15  // Number of completed reservations
+}
+```
+
+### Revenue Breakdown Example
+
+```javascript
+// Reservations in period:
+// 1. RES-001: €500 (room) + €50 (extras) = €550, status: 'checked_out'
+// 2. RES-002: €800 (room) + €100 (extras) = €900, status: 'checked_out'
+// 3. RES-003: €600 (room) + €0 (extras) = €600, status: 'cancelled' ❌ Excluded
+
+// Calculation:
+extras = 50 + 100 = €150
+total = 550 + 900 = €1450  // Note: totalPrice already includes extras
+reservations = 2  // Cancelled not counted
+```
+
+<Note>
+  The `total` field in the report represents the sum of all reservation `totalPrice` values, which already include extras. The separate `extras` field shows extras revenue for analytical purposes.
+</Note>
+
+<Warning>
+  Only reservations where BOTH check-in AND check-out dates fall within the specified range are included. Cancelled reservations are excluded from all calculations.
+</Warning>
+
+### Related Functions
+
+- `getReservationsPlusHistory()` - Combines active and historical reservations (utils.js:207-209)
+- `isRangeInRange()` - Validates date ranges overlap (validation.js:42-51)
+- `getExtrasPrice()` - Calculates extras total (utils.js:122-127)
+
+---
+
+## getGuestHistory
+
+Retrieves complete reservation history and spending summary for a specific guest by email.
+
+### Function Signature
+
+```javascript
+function getGuestHistory(hotel, guestEmail)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object to search within
+</ParamField>
+
+<ParamField path="guestEmail" type="string" required>
+  The email address of the guest (used as unique identifier)
+</ParamField>
+
+### How It Works
+
+1. **Get All Reservations**: Retrieves combined reservations and history (main.js:320)
+2. **Filter by Email**: Finds all reservations matching `guest.email` (main.js:322-324)
+3. **Extract Guest Data**: Gets guest info from the first matching reservation (main.js:326-328)
+4. **Calculate Total Spent**: Sums all `totalPrice` values (main.js:330-332)
+5. **Calculate Total Extras**: Sums all extras charges separately (main.js:334-336)
+6. **Map Reservations**: Creates simplified reservation list (main.js:343-350)
+
+### Return Value
+
+<ResponseField name="guestHistory" type="object">
+  Complete guest profile with reservation history
+  
+  <Expandable title="Guest History Structure">
+    <ResponseField name="guestEmail" type="string">
+      The guest's email address
+    </ResponseField>
+    
+    <ResponseField name="guestName" type="string">
+      The guest's full name
+    </ResponseField>
+    
+    <ResponseField name="totalReservations" type="number">
+      Total number of reservations made by this guest
+    </ResponseField>
+    
+    <ResponseField name="totalSpent" type="number">
+      Total amount spent including room charges and extras
+    </ResponseField>
+    
+    <ResponseField name="reservations" type="array">
+      Array of reservation summaries:
+      
+      <Expandable title="Reservation Summary Object">
+        <ResponseField name="id" type="string">
+          Reservation ID
+        </ResponseField>
+        
+        <ResponseField name="checkIn" type="string">
+          Check-in date
+        </ResponseField>
+        
+        <ResponseField name="checkOut" type="string">
+          Check-out date
+        </ResponseField>
+        
+        <ResponseField name="status" type="string">
+          Reservation status ('confirmed', 'checked_in', 'checked_out', 'cancelled')
+        </ResponseField>
+        
+        <ResponseField name="totalPrice" type="number">
+          Total price for this reservation
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+const guestHistory = getGuestHistory(hotel, 'ana@example.com')
+console.log(guestHistory)
+```
+
+### Expected Output
+
+```javascript
+{
+  guestEmail: 'ana@example.com',
+  guestName: 'Ana García',
+  totalReservations: 3,
+  totalSpent: 1825,  // Sum of totalPrice + sum of all extras
+  reservations: [
+    {
+      id: 'RES-001',
+      checkIn: '2026-04-10',
+      checkOut: '2026-04-15',
+      status: 'checked_out',
+      totalPrice: 625
+    },
+    {
+      id: 'RES-005',
+      checkIn: '2026-05-01',
+      checkOut: '2026-05-05',
+      status: 'checked_out',
+      totalPrice: 500
+    },
+    {
+      id: 'RES-012',
+      checkIn: '2026-06-20',
+      checkOut: '2026-06-25',
+      status: 'confirmed',
+      totalPrice: 700
+    }
+  ]
+}
+```
+
+### Total Spent Calculation
+
+```javascript
+// Reservation totals from database:
+// RES-001: totalPrice = €625 (includes €125 extras)
+// RES-005: totalPrice = €500 (no extras)
+// RES-012: totalPrice = €700 (includes €50 extras)
+
+totalFromReservations = 625 + 500 + 700 = €1825
+totalExtras = 125 + 0 + 50 = €175
+
+// Final totalSpent calculation (main.js:342):
+totalSpent = totalFromReservations + totalExtras = €1825 + €175 = €2000
+```
+
+<Warning>
+  The `totalSpent` calculation adds extras twice: once from the reservation `totalPrice` (which already includes extras) and again from the separate extras calculation. This appears to be a calculation error in the source code (main.js:342).
+</Warning>
+
+<Note>
+  - The function searches across both active reservations and historical data
+  - All reservation statuses are included (confirmed, checked_in, checked_out, cancelled)
+  - Guest data (name, phone, dni) is extracted from the reservation records
+</Note>
+
+### Use Cases
+
+- **Guest Loyalty Programs**: Track total spending for rewards
+- **Customer Service**: View complete reservation history
+- **Analytics**: Identify repeat customers and their preferences
+- **Billing Inquiries**: Verify past charges and reservations
+
+### Related Functions
+
+- `getReservationsPlusHistory()` - Combines all reservation data (utils.js:207-209)
+- `getExtrasPrice()` - Calculates extras total (utils.js:122-127)

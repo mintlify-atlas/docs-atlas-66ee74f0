@@ -1,0 +1,417 @@
+---
+title: Validation Functions
+description: Validation utilities for dates, reservations, and guest data in the hotel management system
+---
+
+## Date Validation
+
+### isValidDateRange()
+
+Validates that a date range is valid for a reservation.
+
+**Signature:**
+```javascript
+function isValidDateRange(checkIn, checkOut): boolean
+```
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The check-in date
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The check-out date
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the date range is valid (check-in is today or future AND check-out is on or after check-in)
+</ResponseField>
+
+**Validates:**
+- Check-in date is today or in the future
+- Check-out date is on or after the check-in date
+
+**Example:**
+```javascript
+import { isValidDateRange } from './utils/validation.js'
+
+const checkIn = Temporal.PlainDate.from('2026-03-10')
+const checkOut = Temporal.PlainDate.from('2026-03-15')
+
+if (isValidDateRange(checkIn, checkOut)) {
+  console.log('Date range is valid')
+}
+```
+
+---
+
+### isDateTodayOrFuture()
+
+Validates that a date is not in the past.
+
+**Signature:**
+```javascript
+function isDateTodayOrFuture(checkIn): boolean
+```
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The date to validate
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the date is today or in the future, false if in the past
+</ResponseField>
+
+**Purpose:**
+Ensures that a date is not in the past by comparing it with the current date.
+
+**Example:**
+```javascript
+import { isDateTodayOrFuture } from './utils/validation.js'
+
+const futureDate = Temporal.PlainDate.from('2026-12-31')
+const pastDate = Temporal.PlainDate.from('2025-01-01')
+
+console.log(isDateTodayOrFuture(futureDate)) // true
+console.log(isDateTodayOrFuture(pastDate))   // false
+```
+
+---
+
+### isDateTodayOrPast()
+
+Validates that a date is not in the future.
+
+**Signature:**
+```javascript
+function isDateTodayOrPast(checkIn): boolean
+```
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The date to validate
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the date is today or in the past, false if in the future
+</ResponseField>
+
+**Purpose:**
+Ensures that a date is not in the future by comparing it with the current date.
+
+**Example:**
+```javascript
+import { isDateTodayOrPast } from './utils/validation.js'
+
+const pastDate = Temporal.PlainDate.from('2025-01-01')
+const futureDate = Temporal.PlainDate.from('2026-12-31')
+
+console.log(isDateTodayOrPast(pastDate))   // true
+console.log(isDateTodayOrPast(futureDate)) // false
+```
+
+---
+
+### isDateInRange()
+
+Validates that a date falls within a specific date range.
+
+**Signature:**
+```javascript
+function isDateInRange(date, checkIn, checkOut): boolean
+```
+
+<ParamField path="date" type="Temporal.PlainDate" required>
+  The date to check
+</ParamField>
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The start of the date range (inclusive)
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The end of the date range (inclusive)
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the date is within the range (inclusive), false otherwise
+</ResponseField>
+
+**Example:**
+```javascript
+import { isDateInRange } from './utils/validation.js'
+
+const date = Temporal.PlainDate.from('2026-03-12')
+const checkIn = Temporal.PlainDate.from('2026-03-10')
+const checkOut = Temporal.PlainDate.from('2026-03-15')
+
+console.log(isDateInRange(date, checkIn, checkOut)) // true
+```
+
+<Note>
+  The range is inclusive on both ends - dates equal to checkIn or checkOut will return true.
+</Note>
+
+---
+
+### isRangeInRange()
+
+Validates that one date range falls completely within another date range.
+
+**Signature:**
+```javascript
+function isRangeInRange(dateStart, dateEnd, checkIn, checkOut): boolean
+```
+
+<ParamField path="dateStart" type="Temporal.PlainDate" required>
+  The start date of the outer range
+</ParamField>
+
+<ParamField path="dateEnd" type="Temporal.PlainDate" required>
+  The end date of the outer range
+</ParamField>
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The start date of the inner range to check
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The end date of the inner range to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if both checkIn and checkOut fall within the dateStart-dateEnd range
+</ResponseField>
+
+**Purpose:**
+Checks if a date range (checkIn to checkOut) is completely contained within another date range (dateStart to dateEnd).
+
+**Example:**
+```javascript
+import { isRangeInRange } from './utils/validation.js'
+
+const outerStart = Temporal.PlainDate.from('2026-03-01')
+const outerEnd = Temporal.PlainDate.from('2026-03-31')
+const innerStart = Temporal.PlainDate.from('2026-03-10')
+const innerEnd = Temporal.PlainDate.from('2026-03-15')
+
+console.log(isRangeInRange(outerStart, outerEnd, innerStart, innerEnd)) // true
+```
+
+---
+
+### isEndDateOnOrAfterStartDate()
+
+Validates that the end date is not before the start date.
+
+**Signature:**
+```javascript
+function isEndDateOnOrAfterStartDate(checkIn, checkOut): boolean
+```
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The start date
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The end date
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if checkOut is on or after checkIn, false if checkOut is before checkIn
+</ResponseField>
+
+**Example:**
+```javascript
+import { isEndDateOnOrAfterStartDate } from './utils/validation.js'
+
+const checkIn = Temporal.PlainDate.from('2026-03-10')
+const checkOut = Temporal.PlainDate.from('2026-03-15')
+
+console.log(isEndDateOnOrAfterStartDate(checkIn, checkOut)) // true
+```
+
+---
+
+## Reservation Validation
+
+### validateReservation()
+
+Comprehensively validates that a reservation can be created.
+
+**Signature:**
+```javascript
+function validateReservation(hotel, roomNumber, guestData, checkIn, checkOut): ValidationResult
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object
+</ParamField>
+
+<ParamField path="roomNumber" type="number" required>
+  The room number to reserve
+</ParamField>
+
+<ParamField path="guestData" type="Guest" required>
+  The guest information object containing email, dni, and phone
+</ParamField>
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The check-in date
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The check-out date
+</ParamField>
+
+<ResponseField name="return" type="ValidationResult">
+  Object with `status` (boolean) and `message` (string) properties
+</ResponseField>
+
+**Validates:**
+1. The room exists
+2. The room is available for the specified dates
+3. The date range is valid
+4. The stay is 14 nights or less
+5. Guest data is valid (email, DNI, phone)
+
+**Example:**
+```javascript
+import { validateReservation } from './utils/validation.js'
+
+const guestData = {
+  name: 'John Doe',
+  email: 'john@example.com',
+  dni: '12345678A',
+  phone: '+34123456789'
+}
+
+const validation = validateReservation(
+  hotel,
+  101,
+  guestData,
+  Temporal.PlainDate.from('2026-03-10'),
+  Temporal.PlainDate.from('2026-03-15')
+)
+
+if (validation.status) {
+  console.log('Reservation is valid')
+} else {
+  console.error(validation.message)
+}
+```
+
+**Possible Error Messages:**
+- `"La habitación número {roomNumber} no existe."`
+- `"La habitación número {roomNumber} está reservada para esas fechas."`
+- `"El rango de fechas no es válido."`
+- `"Solo se puede reservar hasta 14 noches."`
+- `"Los datos del huesped no son válidos"`
+
+<Info>
+  This is the main validation function that should be used before creating a reservation. It combines all necessary checks in a single call.
+</Info>
+
+---
+
+## Guest Data Validation
+
+### Email Validation
+
+Validates email addresses using regex pattern matching.
+
+**Regex Pattern:**
+```javascript
+/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+```
+
+**Pattern Breakdown:**
+- `^[a-zA-Z0-9._-]+` - One or more alphanumeric characters, dots, underscores, or hyphens before @
+- `@` - Required @ symbol
+- `[a-zA-Z0-9.-]+` - One or more alphanumeric characters, dots, or hyphens for domain
+- `\.` - Required dot before TLD
+- `[a-zA-Z]{2,}$` - Two or more letters for top-level domain
+
+**Valid Examples:**
+```javascript
+"user@example.com"        // ✓ Valid
+"john.doe@company.co.uk"  // ✓ Valid
+"test_user@domain.org"    // ✓ Valid
+"user+tag@example.com"    // ✗ Invalid (+ not allowed)
+"user@domain"             // ✗ Invalid (no TLD)
+"@example.com"            // ✗ Invalid (no local part)
+```
+
+---
+
+### DNI Validation
+
+Validates Spanish DNI (Documento Nacional de Identidad) format.
+
+**Regex Pattern:**
+```javascript
+/^\d{1,8}[A-Za-z]$/
+```
+
+**Pattern Breakdown:**
+- `^\d{1,8}` - 1 to 8 digits at the start
+- `[A-Za-z]$` - Exactly one letter (uppercase or lowercase) at the end
+
+**Valid Examples:**
+```javascript
+"12345678A"   // ✓ Valid (8 digits + letter)
+"1234567B"    // ✓ Valid (7 digits + letter)
+"123456C"     // ✓ Valid (6 digits + letter)
+"1A"          // ✓ Valid (1 digit + letter)
+"123456789A"  // ✗ Invalid (9 digits, max is 8)
+"12345678"    // ✗ Invalid (no letter)
+"A12345678"   // ✗ Invalid (letter first)
+```
+
+<Note>
+  This validation only checks the format, not the validity of the check letter according to the official DNI algorithm.
+</Note>
+
+---
+
+### Phone Validation
+
+Validates phone numbers with optional country code.
+
+**Function:**
+```javascript
+export function isValidPhone(phone): boolean
+```
+
+**Regex Pattern:**
+```javascript
+/^(\+?\d{1,3})?[\s.-]?\d{9}$/
+```
+
+**Pattern Breakdown:**
+- `^(\+?\d{1,3})?` - Optional country code: optional +, followed by 1-3 digits
+- `[\s.-]?` - Optional separator (space, dot, or hyphen)
+- `\d{9}$` - Exactly 9 digits for the phone number
+
+<ParamField path="phone" type="string" required>
+  The phone number to validate
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the phone number matches the pattern, false otherwise
+</ResponseField>
+
+**Valid Examples:**
+```javascript
+import { isValidPhone } from './utils/validation.js'
+
+console.log(isValidPhone('123456789'))      // ✓ Valid (9 digits)
+console.log(isValidPhone('+34123456789'))   // ✓ Valid (country code + 9 digits)
+console.log(isValidPhone('+1 123456789'))   // ✓ Valid (country code, space, 9 digits)
+console.log(isValidPhone('34.123456789'))   // ✓ Valid (country code, dot separator)
+console.log(isValidPhone('+999-123456789')) // ✓ Valid (3-digit country code, hyphen)
+console.log(isValidPhone('12345678'))       // ✗ Invalid (only 8 digits)
+console.log(isValidPhone('+12345678901'))   // ✗ Invalid (too many digits after code)
+```
+
+<Info>
+  This function is exported and can be used independently for phone validation throughout the application.
+</Info>

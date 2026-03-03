@@ -1,0 +1,542 @@
+---
+title: Generating Reports
+description: Generate occupancy reports, calculate revenue, and look up guest history with real examples
+---
+
+The JS Mini Hotel system provides three powerful reporting functions to help you analyze hotel performance and guest behavior. This guide covers occupancy reports, revenue calculations, and guest history lookups.
+
+## Report Types Overview
+
+<CardGroup cols={3}>
+  <Card title="Occupancy Report" icon="bed">
+    View room occupancy for any specific date, including percentage and breakdown by room type.
+  </Card>
+  <Card title="Revenue Report" icon="dollar-sign">
+    Calculate total revenue for a date range, including room charges and extras.
+  </Card>
+  <Card title="Guest History" icon="user">
+    Look up all reservations and spending for a specific guest by email.
+  </Card>
+</CardGroup>
+
+## Occupancy Reports
+
+Generate a snapshot of hotel occupancy for any date (past, present, or future).
+
+### Using getOccupancyReport()
+
+```js main.js:81
+const report = getOccupancyReport(hotel, '2026-03-22')
+console.log(report)
+```
+
+### How It Works
+
+The function analyzes all reservations (active and historical) to determine which rooms are occupied on a specific date:
+
+```js main.js:241-277
+function getOccupancyReport(hotel, date) {
+  const reservationsPlusHistory = structuredClone([
+    ...hotel.reservations,
+    ...hotel.history
+  ])
+
+  // Find rooms occupied on this date
+  const occupiedRooms = reservationsPlusHistory
+    .map(reservation => {
+      if (isDateInRange(date, reservation.checkIn, reservation.checkOut)) {
+        return getRoomByNumber(hotel, reservation.roomNumber)
+      }
+    })
+    .filter(room => room !== undefined)
+
+  return {
+    date: date.toString(),
+    total: hotel.rooms.length,
+    occupied: occupiedRooms.length,
+    available: hotel.rooms.length - occupiedRooms.length,
+    percentage: Math.floor((occupiedRooms.length / hotel.rooms.length) * 100),
+    byType: {
+      single: {
+        total: getRoomsByType(hotel.rooms, ROOM_TYPE.SINGLE).length,
+        occupied: getRoomsByType(occupiedRooms, ROOM_TYPE.SINGLE).length
+      },
+      double: {
+        total: getRoomsByType(hotel.rooms, ROOM_TYPE.DOUBLE).length,
+        occupied: getRoomsByType(occupiedRooms, ROOM_TYPE.DOUBLE).length
+      },
+      suite: {
+        total: getRoomsByType(hotel.rooms, ROOM_TYPE.SUITE).length,
+        occupied: getRoomsByType(occupiedRooms, ROOM_TYPE.SUITE).length
+      }
+    }
+  }
+}
+```
+
+<Accordion title="Date range logic">
+  A room is considered occupied on a date if:
+  
+  ```js
+  checkIn <= date && date < checkOut
+  ```
+  
+  Note that the check-out date is **exclusive** - a guest checking out on March 22 does not occupy the room on March 22.
+</Accordion>
+
+### Expected Output Structure
+
+<CodeGroup>
+```js Example Call
+const report = getOccupancyReport(hotel, '2026-03-22')
+```
+
+```js Output
+{
+  date: '2026-03-22',
+  total: 10,
+  occupied: 6,
+  available: 4,
+  percentage: 60,
+  byType: {
+    single: {
+      total: 4,
+      occupied: 2
+    },
+    double: {
+      total: 4,
+      occupied: 3
+    },
+    suite: {
+      total: 2,
+      occupied: 1
+    }
+  }
+}
+```
+</CodeGroup>
+
+### Use Cases
+
+<Tabs>
+  <Tab title="Daily Operations">
+    Check current day occupancy:
+    
+    ```js
+    const today = Temporal.Now.plainDateISO().toString()
+    const todayReport = getOccupancyReport(hotel, today)
+    
+    console.log(`Today's occupancy: ${todayReport.percentage}%`)
+    console.log(`Available rooms: ${todayReport.available}`)
+    ```
+  </Tab>
+
+  <Tab title="Future Planning">
+    Forecast occupancy for upcoming dates:
+    
+    ```js
+    const futureDate = '2026-06-15'
+    const forecast = getOccupancyReport(hotel, futureDate)
+    
+    if (forecast.percentage < 50) {
+      console.log('Low occupancy - consider promotional offers')
+    }
+    ```
+  </Tab>
+
+  <Tab title="Historical Analysis">
+    Review past occupancy:
+    
+    ```js
+    const pastDate = '2026-01-15'
+    const historical = getOccupancyReport(hotel, pastDate)
+    
+    console.log(`January 15 occupancy was ${historical.percentage}%`)
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  The report includes both active reservations and historical data, so it can generate accurate reports for any date.
+</Note>
+
+## Revenue Reports
+
+Calculate total revenue for a date range, including breakdowns for room charges and extras.
+
+### Using getRevenueReport()
+
+```js main.js:84
+const revenue = getRevenueReport(hotel, '2026-01-01', '2026-03-22')
+console.log(revenue)
+```
+
+### How It Works
+
+The function finds all reservations that overlap with the date range and calculates revenue:
+
+```js main.js:282-314
+function getRevenueReport(hotel, startDate, endDate) {
+  const reservationsPlusHistory = getReservationsPlusHistory(hotel)
+
+  const reservationsInRange = reservationsPlusHistory.reduce(
+    (acc, reservation) => {
+      if (
+        isRangeInRange(
+          startDate,
+          endDate,
+          reservation.checkIn,
+          reservation.checkOut
+        ) &&
+        reservation.status !== RESERVATION_STATUS.CANCELLED
+      ) {
+        acc.push(reservation)
+      }
+      return acc
+    },
+    []
+  )
+
+  return {
+    period: `${startDate.toString()} to ${endDate.toString()}`,
+    rooms: hotel.rooms.length,
+    extras: reservationsInRange.reduce((acc, reservation) => {
+      return (acc += getExtrasPrice(reservation.extras))
+    }, 0),
+    total: reservationsInRange.reduce((acc, reservation) => {
+      return (acc += reservation.totalPrice)
+    }, 0),
+    reservations: reservationsInRange.length
+  }
+}
+```
+
+<Warning>
+  Cancelled reservations are **excluded** from revenue calculations, even if they had cancellation penalties.
+</Warning>
+
+### Expected Output Structure
+
+<CodeGroup>
+```js Example Call
+const revenue = getRevenueReport(hotel, '2026-01-01', '2026-01-31')
+```
+
+```js Output
+{
+  period: '2026-01-01 to 2026-01-31',
+  rooms: 10, // Total number of rooms in hotel
+  extras: 1200, // Total from all extras
+  total: 6200, // Total revenue (includes room + extras)
+  reservations: 25 // Number of reservations in period
+}
+```
+</CodeGroup>
+
+### Revenue Calculation Examples
+
+<Accordion title="Monthly revenue">
+  ```js
+  // Get revenue for January 2026
+  const januaryRevenue = getRevenueReport(
+    hotel,
+    '2026-01-01',
+    '2026-01-31'
+  )
+  
+  console.log(`January revenue: €${januaryRevenue.total}`)
+  console.log(`From extras: €${januaryRevenue.extras}`)
+  console.log(`Number of reservations: ${januaryRevenue.reservations}`)
+  ```
+</Accordion>
+
+<Accordion title="Quarterly revenue">
+  ```js
+  // Q1 2026 revenue
+  const q1Revenue = getRevenueReport(
+    hotel,
+    '2026-01-01',
+    '2026-03-31'
+  )
+  
+  // Calculate average per reservation
+  const avgPerReservation = q1Revenue.total / q1Revenue.reservations
+  console.log(`Average per reservation: €${avgPerReservation.toFixed(2)}`)
+  ```
+</Accordion>
+
+<Accordion title="Year-to-date revenue">
+  ```js
+  const today = Temporal.Now.plainDateISO().toString()
+  const ytdRevenue = getRevenueReport(hotel, '2026-01-01', today)
+  
+  console.log(`Year-to-date revenue: €${ytdRevenue.total}`)
+  ```
+</Accordion>
+
+### Understanding the Total Field
+
+<Tip>
+  The `total` field includes **both** room charges and extras:
+  
+  ```js
+  total = (sum of all reservation.totalPrice values)
+  
+  // Where each reservation.totalPrice already includes:
+  // - Room charges (nights × pricePerNight)
+  // - Extras charges (sum of extra.price × extra.quantity)
+  ```
+</Tip>
+
+## Guest History
+
+Look up all reservations and total spending for a specific guest.
+
+### Using getGuestHistory()
+
+```js main.js:87
+const history = getGuestHistory(hotel, 'ana@example.com')
+console.log(history)
+```
+
+### How It Works
+
+The function searches both active reservations and history by guest email:
+
+```js main.js:319-353
+function getGuestHistory(hotel, guestEmail) {
+  const reservations = getReservationsPlusHistory(hotel)
+
+  const reservationsOfGuest = reservations.filter(
+    reservation => reservation.guest.email === guestEmail
+  )
+
+  const guest = reservationsOfGuest.reduce((acc, reservation) => {
+    return (acc = reservation.guest)
+  }, {})
+
+  const totalSpent = reservationsOfGuest.reduce((acc, reservation) => {
+    return (acc += reservation.totalPrice)
+  }, 0)
+
+  const totalExtras = reservationsOfGuest.reduce((acc, reservation) => {
+    return (acc += getExtrasPrice(reservation.extras))
+  }, 0)
+
+  return {
+    guestEmail,
+    guestName: guest.name,
+    totalReservations: reservationsOfGuest.length,
+    totalSpent: totalSpent + totalExtras,
+    reservations: reservationsOfGuest.map(reservation => {
+      return {
+        id: reservation.id,
+        checkIn: reservation.checkIn,
+        checkOut: reservation.checkOut,
+        status: reservation.status,
+        totalPrice: reservation.totalPrice
+      }
+    })
+  }
+}
+```
+
+<Note>
+  The function calculates `totalSpent` by adding `totalSpent + totalExtras`. This appears to double-count extras since `totalPrice` already includes extras. This might be a bug in the source code.
+</Note>
+
+### Expected Output Structure
+
+<CodeGroup>
+```js Example Call
+const history = getGuestHistory(hotel, 'ana@example.com')
+```
+
+```js Output
+{
+  guestEmail: 'ana@example.com',
+  guestName: 'Ana García',
+  totalReservations: 3,
+  totalSpent: 1200,
+  reservations: [
+    {
+      id: 'RES-001',
+      checkIn: '2025-08-15',
+      checkOut: '2025-08-20',
+      status: 'checked-out',
+      totalPrice: 525
+    },
+    {
+      id: 'RES-028',
+      checkIn: '2025-12-20',
+      checkOut: '2025-12-25',
+      status: 'checked-out',
+      totalPrice: 850
+    },
+    {
+      id: 'RES-042',
+      checkIn: '2026-03-10',
+      checkOut: '2026-03-15',
+      status: 'confirmed',
+      totalPrice: 750
+    }
+  ]
+}
+```
+</CodeGroup>
+
+### Guest History Use Cases
+
+<Tabs>
+  <Tab title="Loyalty Programs">
+    Identify frequent guests:
+    
+    ```js
+    const history = getGuestHistory(hotel, 'ana@example.com')
+    
+    if (history.totalReservations >= 5) {
+      console.log(`${history.guestName} is a VIP guest!`)
+      console.log(`Total spent: €${history.totalSpent}`)
+    }
+    ```
+  </Tab>
+
+  <Tab title="Customer Service">
+    Review guest's reservation history:
+    
+    ```js
+    const history = getGuestHistory(hotel, 'ana@example.com')
+    
+    console.log(`Guest: ${history.guestName}`)
+    console.log(`Total stays: ${history.totalReservations}`)
+    
+    // Show upcoming reservations
+    const upcoming = history.reservations.filter(
+      r => r.status === 'confirmed' || r.status === 'checked-in'
+    )
+    console.log(`Upcoming reservations: ${upcoming.length}`)
+    ```
+  </Tab>
+
+  <Tab title="Marketing Analytics">
+    Analyze guest spending:
+    
+    ```js
+    const history = getGuestHistory(hotel, 'ana@example.com')
+    
+    const avgSpend = history.totalSpent / history.totalReservations
+    console.log(`Average spend per visit: €${avgSpend.toFixed(2)}`)
+    ```
+  </Tab>
+</Tabs>
+
+## Combining Reports
+
+You can combine different reports for comprehensive insights:
+
+<CodeGroup>
+```js Combined Analysis
+// Get all data for a month
+const month = '2026-01'
+const startDate = `${month}-01`
+const endDate = `${month}-31`
+
+// Revenue report
+const revenue = getRevenueReport(hotel, startDate, endDate)
+
+// Occupancy samples (first, middle, last day)
+const day1 = getOccupancyReport(hotel, `${month}-01`)
+const day15 = getOccupancyReport(hotel, `${month}-15`)
+const day31 = getOccupancyReport(hotel, `${month}-31`)
+
+// Calculate average occupancy
+const avgOccupancy = Math.round(
+  (day1.percentage + day15.percentage + day31.percentage) / 3
+)
+
+console.log('Monthly Report')
+console.log('==============')
+console.log(`Revenue: €${revenue.total}`)
+console.log(`Reservations: ${revenue.reservations}`)
+console.log(`Average occupancy: ${avgOccupancy}%`)
+console.log(`Revenue per reservation: €${(revenue.total / revenue.reservations).toFixed(2)}`)
+```
+
+```js Output
+Monthly Report
+==============
+Revenue: €8450
+Reservations: 32
+Average occupancy: 64%
+Revenue per reservation: €264.06
+```
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use appropriate date formats">
+    Always use ISO date format (YYYY-MM-DD):
+    
+    ```js
+    // Good
+    getOccupancyReport(hotel, '2026-03-22')
+    
+    // Bad
+    getOccupancyReport(hotel, '03/22/2026')
+    ```
+  </Accordion>
+
+  <Accordion title="Handle empty results">
+    Check for empty guest history:
+    
+    ```js
+    const history = getGuestHistory(hotel, 'unknown@example.com')
+    
+    if (history.totalReservations === 0) {
+      console.log('Guest not found')
+    } else {
+      console.log(`Found ${history.totalReservations} reservations`)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Cache report results">
+    For frequently accessed reports, consider caching:
+    
+    ```js
+    const reportCache = new Map()
+    
+    function getCachedOccupancyReport(hotel, date) {
+      const key = `occupancy-${date}`
+      
+      if (!reportCache.has(key)) {
+        reportCache.set(key, getOccupancyReport(hotel, date))
+      }
+      
+      return reportCache.get(key)
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Considerations
+
+<Warning>
+  All report functions iterate through reservations and history. For hotels with thousands of reservations, consider:
+  
+  - Implementing pagination for guest history
+  - Adding date range filters to limit data processing
+  - Caching frequently accessed reports
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Reservations" icon="calendar-plus" href="/guides/creating-reservations">
+    Create new reservations that will appear in reports
+  </Card>
+  <Card title="Managing Extras" icon="plus" href="/guides/managing-extras">
+    Add extras that contribute to revenue reports
+  </Card>
+</CardGroup>

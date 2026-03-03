@@ -1,0 +1,194 @@
+---
+title: Introduction
+description: Welcome to JS Mini Hotel - A comprehensive JavaScript library for hotel management
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="Hero Dark"
+/>
+
+## What is JS Mini Hotel?
+
+JS Mini Hotel is a complete hotel management system built in vanilla JavaScript. It provides a robust API for handling all aspects of hotel operations, from room availability searches to guest check-in/check-out, billing, and comprehensive reporting.
+
+Whether you're building a hotel booking platform, property management system, or learning about real-world JavaScript applications, JS Mini Hotel offers a production-ready foundation with clean, maintainable code.
+
+## Quick Navigation
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with JS Mini Hotel in minutes
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/hotel-management"
+  >
+    Explore all available functions and methods
+  </Card>
+  <Card
+    title="Core Concepts"
+    icon="book"
+    href="/concepts/data-structures"
+  >
+    Understand the data structures and architecture
+  </Card>
+  <Card
+    title="Guides"
+    icon="lightbulb"
+    href="/guides/creating-reservations"
+  >
+    See practical examples and use cases
+  </Card>
+</CardGroup>
+
+## Core Features
+
+<AccordionGroup>
+  <Accordion icon="magnifying-glass" title="Room Availability Search">
+    Search for available rooms by date range and room type. The system automatically checks for conflicts with existing reservations and returns only truly available rooms.
+  </Accordion>
+  
+  <Accordion icon="calendar-plus" title="Reservation Management">
+    Create, modify, and cancel reservations with built-in validation. Supports guest data management, date validation, and automatic pricing calculations.
+  </Accordion>
+  
+  <Accordion icon="door-open" title="Check-in/Check-out Operations">
+    Streamlined check-in and check-out processes with status tracking, room availability updates, and automatic invoice generation.
+  </Accordion>
+  
+  <Accordion icon="file-invoice" title="Billing & Extras">
+    Add extra services (breakfast, parking, late check-out) to reservations with automatic price recalculation. Generate detailed invoices with itemized breakdowns.
+  </Accordion>
+  
+  <Accordion icon="chart-line" title="Reporting & Analytics">
+    Generate occupancy reports for any date, revenue reports for date ranges, and guest history tracking for customer relationship management.
+  </Accordion>
+  
+  <Accordion icon="ban" title="Cancellation Policy">
+    Flexible cancellation system with automatic penalty calculation based on cancellation timing:
+    - More than 7 days before check-in: No charge
+    - 3-7 days before: 50% of total
+    - Less than 3 days: 100% of total
+  </Accordion>
+</AccordionGroup>
+
+## Key Capabilities
+
+<CardGroup cols={3}>
+  <Card icon="check" title="Data Validation">
+    Email, phone, DNI regex validation
+  </Card>
+  <Card icon="calculator" title="Auto Calculations">
+    Nights, prices, and penalties
+  </Card>
+  <Card icon="calendar" title="Date Handling">
+    Temporal API for date operations
+  </Card>
+  <Card icon="database" title="State Management">
+    Active reservations + history tracking
+  </Card>
+  <Card icon="users" title="Guest Tracking">
+    Complete guest history by email
+  </Card>
+  <Card icon="chart-pie" title="Occupancy Analytics">
+    Real-time and historical reports
+  </Card>
+</CardGroup>
+
+## Installation
+
+<Note>
+  JS Mini Hotel is a vanilla JavaScript library with no external dependencies (except for development utilities).
+</Note>
+
+### Option 1: Clone the Repository
+
+```bash
+git clone <repository-url>
+cd js-mini-hotel
+```
+
+### Option 2: Copy the Source Files
+
+Copy the following files from the `source` directory into your project:
+
+```
+source/
+├── main.js              # Core hotel management functions
+├── utils/
+│   ├── utils.js         # Utility functions
+│   ├── validation.js    # Validation logic
+│   └── constants.js     # Constants and enums
+└── data/
+    ├── rooms.json       # Room definitions
+    ├── reservations.json # Sample reservations
+    └── history.json     # Reservation history
+```
+
+### Option 3: Module Import
+
+Since this is a modern ES6+ project using module syntax, you can import it directly:
+
+```javascript
+import {
+  createHotel,
+  searchAvailableRooms,
+  createReservation,
+  addExtras,
+  checkIn,
+  checkOut,
+  cancelReservation,
+  getOccupancyReport,
+  getRevenueReport,
+  getGuestHistory
+} from './source/main.js';
+```
+
+<Tip>
+  Make sure your project supports ES6 modules. Use `type: "module"` in your `package.json` or use the `.mjs` extension.
+</Tip>
+
+## Room Types & Pricing
+
+The system supports three room types with standard pricing:
+
+| Room Type | Price per Night | Typical Features |
+|-----------|----------------|------------------|
+| **Single** | €50 | WiFi, TV |
+| **Double** | €80 | WiFi, TV, Minibar |
+| **Suite** | €150 | WiFi, TV, Minibar, Jacuzzi |
+
+## Available Extras
+
+Enhance reservations with additional services:
+
+- **Breakfast**: €10/day
+- **Parking**: €15/day  
+- **Late Check-out**: €30 (one-time charge)
+- **Early Check-in**: €20 (one-time charge)
+
+## Next Steps
+
+<Steps>
+  <Step title="Complete the Quickstart">
+    Follow the [Quickstart Guide](/quickstart) to create your first hotel and reservation
+  </Step>
+  <Step title="Explore the API">
+    Review the [API Reference](/api/hotel-management) to understand all available functions
+  </Step>
+  <Step title="Build Your Application">
+    Start integrating JS Mini Hotel into your project
+  </Step>
+</Steps>

@@ -1,0 +1,342 @@
+---
+title: Managing Extras
+description: Add extra services like breakfast and parking to reservations with automatic price recalculation
+---
+
+Extras are additional services that guests can add to their reservations, such as breakfast, parking, or special check-in/out times. This guide explains how to manage extras and how pricing is recalculated.
+
+## Available Extra Services
+
+The JS Mini Hotel system supports the following extra services:
+
+<CardGroup cols={2}>
+  <Card title="Breakfast" icon="coffee">
+    **€10 per day**
+    
+    Add daily breakfast service for your guests.
+  </Card>
+  <Card title="Parking" icon="square-parking">
+    **€15 per day**
+    
+    Reserved parking space during the stay.
+  </Card>
+  <Card title="Late Check-out" icon="clock">
+    **€30 one-time**
+    
+    Check out later than standard time.
+  </Card>
+  <Card title="Early Check-in" icon="clock">
+    **€20 one-time**
+    
+    Check in earlier than standard time.
+  </Card>
+</CardGroup>
+
+## Adding Extras to a Reservation
+
+Extras can be added to any existing reservation using the `addExtras()` function.
+
+<Steps>
+  <Step title="Prepare the extras array">
+    Each extra is an object with `name`, `price`, and `quantity` properties:
+
+    ```js
+    const extras = [
+      { name: 'Breakfast', price: 10, quantity: 5 },
+      { name: 'Parking', price: 15, quantity: 5 }
+    ]
+    ```
+
+    <Note>
+      **Quantity** typically matches the number of nights for daily services, or is set to 1 for one-time charges.
+    </Note>
+  </Step>
+
+  <Step title="Add extras to the reservation">
+    Use the reservation ID to add extras:
+
+    ```js main.js:63-69
+    const updatedReservation = addExtras(
+      hotel,
+      'RES-001',
+      [
+        { name: 'Breakfast', price: 10, quantity: 5 },
+        { name: 'Parking', price: 15, quantity: 5 }
+      ]
+    )
+    ```
+  </Step>
+
+  <Step title="Verify the updated reservation">
+    The function returns the updated reservation with extras and recalculated price:
+
+    ```js
+    console.log('Updated reservation:', updatedReservation)
+    ```
+  </Step>
+</Steps>
+
+## How the Function Works
+
+Let's examine the `addExtras()` function in detail:
+
+```js main.js:154-166
+function addExtras(hotel, reservationId, extras) {
+  if (getReservationById(hotel, reservationId) === undefined) {
+    console.log('La reserva no existe, no se pueden añadir extras')
+    return
+  }
+  const [reservation] = hotel.reservations.filter(
+    reservation => reservation.id === reservationId
+  )
+  reservation.extras.push(...extras)
+  reservation.totalPrice = updateTotalPriceWithExtras(reservation, extras)
+
+  return reservation
+}
+```
+
+<Accordion title="Step-by-step breakdown">
+  1. **Validation**: Checks if the reservation exists
+  2. **Find reservation**: Locates the reservation in the hotel's reservations array
+  3. **Add extras**: Pushes the new extras to the reservation's extras array
+  4. **Recalculate price**: Updates the total price to include extras
+  5. **Return**: Returns the updated reservation object
+</Accordion>
+
+## Price Recalculation
+
+When extras are added, the total price is automatically recalculated.
+
+### How Extras Pricing Works
+
+The system calculates the total extras price and adds it to the base room price:
+
+```js utils.js:114-117
+export function updateTotalPriceWithExtras(reservation, extras) {
+  const extrasTotalPrice = getExtrasPrice(extras)
+  return extrasTotalPrice + reservation.totalPrice
+}
+```
+
+```js utils.js:122-127
+export function getExtrasPrice(extras) {
+  return extras.reduce((acc, extra) => {
+    acc += extra.price * extra.quantity
+    return acc
+  }, 0)
+}
+```
+
+<Tip>
+  The price calculation formula is: `totalPrice = roomPrice + (extra.price × extra.quantity)` for each extra.
+</Tip>
+
+## Example Scenarios
+
+### Scenario 1: Adding Daily Services
+
+A 5-night stay with breakfast and parking:
+
+<CodeGroup>
+```js Code
+// Original reservation: 5 nights × €150/night = €750
+const reservation = createReservation(
+  hotel,
+  301,
+  {
+    name: 'Ana García',
+    email: 'ana@example.com',
+    phone: '+34 612345678',
+    dni: '12345678A'
+  },
+  '2026-04-10',
+  '2026-04-15'
+)
+
+// Add breakfast and parking for all 5 nights
+const withExtras = addExtras(
+  hotel,
+  reservation.id,
+  [
+    { name: 'Breakfast', price: 10, quantity: 5 },
+    { name: 'Parking', price: 15, quantity: 5 }
+  ]
+)
+```
+
+```js Price Breakdown
+// Original room price
+Room (5 nights × €150): €750
+
+// Extras calculation
+Breakfast (€10 × 5): €50
+Parking (€15 × 5): €75
+
+// New total price
+Total: €875
+```
+</CodeGroup>
+
+### Scenario 2: One-Time Charges
+
+Adding early check-in and late check-out:
+
+<CodeGroup>
+```js Code
+// Add one-time charges
+const withSpecialTimes = addExtras(
+  hotel,
+  reservation.id,
+  [
+    { name: 'Early Check-in', price: 20, quantity: 1 },
+    { name: 'Late Check-out', price: 30, quantity: 1 }
+  ]
+)
+```
+
+```js Price Breakdown
+// Original room price (from previous example)
+Room + Daily Extras: €875
+
+// One-time charges
+Early Check-in: €20
+Late Check-out: €30
+
+// New total price
+Total: €925
+```
+</CodeGroup>
+
+### Scenario 3: Mixed Services
+
+Combining daily and one-time services:
+
+<CodeGroup>
+```js Code
+const fullExtras = addExtras(
+  hotel,
+  reservation.id,
+  [
+    { name: 'Breakfast', price: 10, quantity: 5 },
+    { name: 'Late Check-out', price: 30, quantity: 1 }
+  ]
+)
+```
+
+```js Result
+{
+  id: 'RES-20260410T120000000000000Z-73',
+  roomNumber: 301,
+  guest: { /* ... */ },
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-15',
+  nights: 5,
+  totalPrice: 830, // €750 + €50 + €30
+  status: 'confirmed',
+  extras: [
+    { name: 'Breakfast', price: 10, quantity: 5 },
+    { name: 'Late Check-out', price: 30, quantity: 1 }
+  ]
+}
+```
+</CodeGroup>
+
+## Error Handling
+
+<Warning>
+  If you try to add extras to a non-existent reservation, the function will log an error and return `undefined`:
+
+  ```js
+  addExtras(hotel, 'RES-INVALID', [...])
+  // Console: "La reserva no existe, no se pueden añadir extras"
+  ```
+</Warning>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Calculate quantity based on nights">
+    For daily services like breakfast or parking, set the quantity equal to the number of nights:
+
+    ```js
+    const nights = reservation.nights
+    const extras = [
+      { name: 'Breakfast', price: 10, quantity: nights },
+      { name: 'Parking', price: 15, quantity: nights }
+    ]
+    ```
+  </Accordion>
+
+  <Accordion title="Validate reservation exists first">
+    Always verify the reservation exists before attempting to add extras:
+
+    ```js
+    const reservation = getReservationById(hotel, reservationId)
+    if (reservation) {
+      addExtras(hotel, reservationId, extras)
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Use consistent pricing">
+    Maintain consistent pricing across your application by referencing a constants file:
+
+    ```js
+    const EXTRA_PRICES = {
+      BREAKFAST: 10,
+      PARKING: 15,
+      LATE_CHECKOUT: 30,
+      EARLY_CHECKIN: 20
+    }
+
+    const extras = [
+      { name: 'Breakfast', price: EXTRA_PRICES.BREAKFAST, quantity: 5 }
+    ]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Viewing Extras in Invoices
+
+When a guest checks out, extras are itemized in the invoice:
+
+```js utils.js:160-181
+export function createInvoice(hotel, reservation) {
+  const room = getRoomByNumber(hotel, reservation.roomNumber)
+
+  return {
+    reservationId: reservation.id,
+    guest: reservation.guest,
+    room: {
+      number: room.number,
+      type: room.type
+    },
+    checkIn: reservation.checkIn,
+    checkOut: reservation.checkOut,
+    price: {
+      room: getTotalPrice(room, reservation.checkIn, reservation.checkOut),
+      extras: getExtrasPrice(reservation.extras),
+      total:
+        getTotalPrice(room, reservation.checkIn, reservation.checkOut) +
+        getExtrasPrice(reservation.extras)
+    },
+    emisionDate: Temporal.Now.plainDateISO()
+  }
+}
+```
+
+<Note>
+  The invoice separately shows room charges and extras charges for transparency.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Reservations" icon="calendar-plus" href="/guides/creating-reservations">
+    Learn how to create reservations from scratch
+  </Card>
+  <Card title="Generating Reports" icon="chart-line" href="/guides/generating-reports">
+    View revenue reports that include extras income
+  </Card>
+</CardGroup>

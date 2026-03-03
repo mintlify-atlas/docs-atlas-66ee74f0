@@ -1,0 +1,334 @@
+---
+title: 'Check-In & Check-Out'
+description: 'Functions for managing guest check-in, check-out, and reservation cancellations'
+---
+
+## checkIn
+
+Performs the check-in process for a confirmed reservation, updating reservation status and room occupation.
+
+### Function Signature
+
+```javascript
+function checkIn(hotel, reservationId)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object containing the reservation
+</ParamField>
+
+<ParamField path="reservationId" type="string" required>
+  The unique ID of the reservation to check in
+</ParamField>
+
+### Validations
+
+The function performs the following validations in order:
+
+1. **Reservation Exists**: Checks if the reservation ID exists (main.js:174-176)
+2. **Status is Confirmed**: Verifies reservation status is `'confirmed'` (main.js:177-179)
+3. **Valid Check-In Date**: Check-in date must be today or in the past using `isDateTodayOrPast()` (main.js:180-182, validation.js:24-27)
+4. **Room Available**: The room status must be `'available'`, not `'occupied'` (main.js:186-188)
+
+### Status Changes
+
+When check-in is successful:
+
+1. **Reservation Status**: Changed from `'confirmed'` to `'checked_in'` (main.js:190)
+2. **Room Status**: Changed from `'available'` to `'occupied'` (main.js:191)
+3. **Check-In Date**: Updated to current date using `Temporal.Now.plainDateISO()` (main.js:192)
+
+### Return Value
+
+<ResponseField name="result" type="string">
+  Returns a success message or error description
+  
+  <Expandable title="Possible Return Values">
+    **Success:**
+    - `"El check-in de la reserva {reservationId} se hizo correctamente en la habitacion no. {roomNumber}"`
+    
+    **Errors:**
+    - `"La reserva no existe, no se puede realizar el check-in"` - Reservation not found
+    - `"La reserva no está confirmada. Status: {status}"` - Invalid status (e.g., already checked in, cancelled)
+    - `"La fecha de check-in no es válida"` - Check-in date is in the future
+    - `"La habitación no está disponible"` - Room is occupied
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+const result = checkIn(hotel, 'RES-001')
+console.log(result)
+```
+
+### Expected Output
+
+```javascript
+"El check-in de la reserva RES-001 se hizo correctamente en la habitacion no. 301"
+```
+
+### State Changes Visualization
+
+```javascript
+// Before check-in:
+reservation.status = 'confirmed'
+room.status = 'available'
+reservation.checkIn = '2026-04-10'
+
+// After check-in (performed on 2026-04-10):
+reservation.status = 'checked_in'
+room.status = 'occupied'
+reservation.checkIn = '2026-04-10'  // Updated to actual check-in date
+```
+
+<Warning>
+  Check-in can only be performed if ALL validations pass. The function returns an error string and makes no changes if any validation fails.
+</Warning>
+
+<Note>
+  The actual check-in date is recorded when the function executes, which may differ from the originally planned check-in date in the reservation.
+</Note>
+
+---
+
+## checkOut
+
+Performs the check-out process, generates an invoice, releases the room, and archives the reservation.
+
+### Function Signature
+
+```javascript
+function checkOut(hotel, reservationId)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object containing the reservation
+</ParamField>
+
+<ParamField path="reservationId" type="string" required>
+  The unique ID of the reservation to check out
+</ParamField>
+
+### Validations
+
+1. **Reservation Exists**: Verifies the reservation ID exists (main.js:201-203)
+2. **Status is Checked-In**: Must be `'checked_in'` status (main.js:204-206)
+3. **Valid Check-Out Date**: Check-out date must be on or after check-in date using `isEndDateOnOrAfterStartDate()` (main.js:207-209)
+
+### Process Flow
+
+When check-out is successful:
+
+1. **Update Reservation Status**: Changed to `'checked_out'` (main.js:211)
+2. **Release Room**: Room status changed to `'available'` (main.js:212)
+3. **Archive Reservation**: Moves reservation from `hotel.reservations` to `hotel.history` (main.js:214, utils.js:142-146)
+4. **Generate Invoice**: Creates detailed invoice object (main.js:216, utils.js:160-181)
+
+### Return Value
+
+<ResponseField name="invoice" type="object | string">
+  Returns a detailed invoice object if successful, or an error string if validation fails
+  
+  <Expandable title="Invoice Object Structure">
+    <ResponseField name="reservationId" type="string">
+      The reservation ID
+    </ResponseField>
+    
+    <ResponseField name="guest" type="object">
+      Complete guest information (name, email, phone, dni)
+    </ResponseField>
+    
+    <ResponseField name="room" type="object">
+      Room details:
+      - `number` (number): Room number
+      - `type` (string): Room type
+    </ResponseField>
+    
+    <ResponseField name="checkIn" type="string">
+      Actual check-in date
+    </ResponseField>
+    
+    <ResponseField name="checkOut" type="string">
+      Actual check-out date
+    </ResponseField>
+    
+    <ResponseField name="price" type="object">
+      Price breakdown:
+      - `room` (number): Room charges only
+      - `extras` (number): Total extras charges
+      - `total` (number): Room + extras
+    </ResponseField>
+    
+    <ResponseField name="emisionDate" type="Temporal.PlainDate">
+      Invoice emission date (current date)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Cases
+
+- `"La reserva no existe, no se puede realizar el check-out"` - Reservation not found
+- `"No se hizo el check-in de la reserva. Status: {status}"` - Not checked in
+- `"La fecha de check-out no es válida"` - Check-out before check-in
+
+### Example
+
+```javascript
+const invoice = checkOut(hotel, 'RES-002')
+console.log('Invoice', invoice)
+```
+
+### Expected Output
+
+```javascript
+{
+  reservationId: 'RES-002',
+  guest: {
+    name: 'Ana García',
+    email: 'ana@example.com',
+    phone: '+34 612345678',
+    dni: '12345678A'
+  },
+  room: {
+    number: 301,
+    type: 'suite'
+  },
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-15',
+  price: {
+    room: 500,
+    extras: 125,
+    total: 625
+  },
+  emisionDate: 2026-04-15  // Temporal.PlainDate object
+}
+```
+
+<Warning>
+  The reservation is permanently moved to `hotel.history` and removed from `hotel.reservations` during check-out.
+</Warning>
+
+---
+
+## cancelReservation
+
+Cancels a reservation with penalty calculation based on cancellation policy, then archives it.
+
+### Function Signature
+
+```javascript
+function cancelReservation(hotel, reservationId)
+```
+
+### Parameters
+
+<ParamField path="hotel" type="object" required>
+  The hotel object containing the reservation
+</ParamField>
+
+<ParamField path="reservationId" type="string" required>
+  The unique ID of the reservation to cancel
+</ParamField>
+
+### Cancellation Policy
+
+The penalty is calculated based on days until check-in (utils.js:186-202):
+
+<Expandable title="Penalty Calculation Rules">
+  1. **Less than 3 days**: 100% penalty (full reservation price)
+     ```javascript
+     if (duration.days < 3) return totalPrice
+     ```
+  
+  2. **3-7 days**: 50% penalty (half reservation price)
+     ```javascript
+     else if (duration.days < 8) return 0.5 * totalPrice
+     ```
+  
+  3. **8+ days**: No penalty (free cancellation)
+     ```javascript
+     else return 0
+     ```
+</Expandable>
+
+### Process Flow
+
+1. **Find Reservation**: Retrieves reservation by ID (main.js:223)
+2. **Calculate Penalty**: Calls `getCancellationCharge()` to determine penalty (main.js:224, utils.js:186-202)
+3. **Validate Exists**: Checks if reservation exists (main.js:225-227)
+4. **Get Room**: Retrieves the room object (main.js:229)
+5. **Update Status**: Sets reservation status to `'cancelled'` (main.js:231)
+6. **Release Room**: Sets room status to `'available'` (main.js:232)
+7. **Archive**: Moves reservation to history (main.js:233)
+8. **Return Message**: Includes penalty amount (main.js:235)
+
+### Return Value
+
+<ResponseField name="result" type="string">
+  Returns a cancellation confirmation message with penalty amount
+  
+  <Expandable title="Possible Return Values">
+    **Success:**
+    - `"Cancelación realizada con una penalización de {amount}€"`
+    
+    **Error:**
+    - `"La reserva no existe, no se puede cancelar"` - Reservation not found
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```javascript
+// Scenario 1: Cancelling 10 days before check-in
+const result1 = cancelReservation(hotel, 'RES-001')
+console.log('Reserva cancelada', result1)
+// Output: "Cancelación realizada con una penalización de 0€"
+
+// Scenario 2: Cancelling 5 days before check-in (totalPrice = 500)
+const result2 = cancelReservation(hotel, 'RES-003')
+// Output: "Cancelación realizada con una penalización de 250€"
+
+// Scenario 3: Cancelling 2 days before check-in (totalPrice = 500)
+const result3 = cancelReservation(hotel, 'RES-004')
+// Output: "Cancelación realizada con una penalización de 500€"
+```
+
+### Penalty Calculation Example
+
+```javascript
+// Reservation details:
+// - Check-in: 2026-04-20
+// - Total price: €600
+// - Today: 2026-04-15 (5 days before)
+
+const duration = now.until(Temporal.PlainDate.from('2026-04-20'))
+// duration.days = 5
+
+// Since 5 days < 8 and >= 3:
+cancellationCharge = 0.5 * 600 = €300
+
+// Result: "Cancelación realizada con una penalización de 300€"
+```
+
+<Note>
+  The cancellation policy uses `Temporal.Now.plainDateISO()` to calculate days until check-in, ensuring accurate timezone-independent date calculations.
+</Note>
+
+<Warning>
+  After cancellation:
+  - Reservation is moved to `hotel.history`
+  - Room becomes available for new reservations
+  - Reservation status is permanently set to `'cancelled'`
+</Warning>
+
+### Related Functions
+
+- `getCancellationCharge()` - Calculates penalty amount (utils.js:186-202)
+- `archiveReservation()` - Moves to history (utils.js:142-146)
+- `getReservationById()` - Finds reservation (utils.js:132-137)
+- `getRoomByNumber()` - Gets room object (utils.js:18-21)

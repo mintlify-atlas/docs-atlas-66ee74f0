@@ -1,0 +1,583 @@
+---
+title: Helper Functions
+description: Utility functions for hotel management operations including reservations, rooms, pricing, and invoicing
+---
+
+## Reservation Management
+
+### createUniqueReservationId()
+
+Generates a unique reservation ID using a timestamp and random number.
+
+**Signature:**
+```javascript
+function createUniqueReservationId(): string
+```
+
+**Returns:**
+A unique reservation ID in the format `RES-{timestamp}-{random}`
+
+**Purpose:**
+Creates a unique identifier for new reservations by combining the current timestamp (with special characters removed) and a random number between 0-99.
+
+**Example:**
+```javascript
+import { createUniqueReservationId } from './utils/utils.js'
+
+const reservationId = createUniqueReservationId()
+console.log(reservationId) // "RES-20260303T120530123456Z-42"
+```
+
+---
+
+### getReservationById()
+
+Retrieves a reservation by its ID.
+
+**Signature:**
+```javascript
+function getReservationById(hotel, reservationId): Reservation | undefined
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object containing the reservations array
+</ParamField>
+
+<ParamField path="reservationId" type="string" required>
+  The unique reservation ID to search for
+</ParamField>
+
+<ResponseField name="return" type="Reservation | undefined">
+  The reservation object if found, otherwise undefined
+</ResponseField>
+
+**Example:**
+```javascript
+import { getReservationById } from './utils/utils.js'
+
+const reservation = getReservationById(hotel, 'RES-20260303T120530123456Z-42')
+if (reservation) {
+  console.log(reservation.guest.name)
+}
+```
+
+---
+
+### archiveReservation()
+
+Moves a reservation from the active reservations list to the history.
+
+**Signature:**
+```javascript
+function archiveReservation(hotel, reservation): void
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object to modify
+</ParamField>
+
+<ParamField path="reservation" type="Reservation" required>
+  The reservation to archive
+</ParamField>
+
+**Purpose:**
+Transfers a reservation to the hotel's history array and removes it from the active reservations. Used when a reservation is completed or needs to be archived.
+
+**Example:**
+```javascript
+import { archiveReservation, getReservationById } from './utils/utils.js'
+
+const reservation = getReservationById(hotel, 'RES-123')
+archiveReservation(hotel, reservation)
+// Reservation is now in hotel.history and removed from hotel.reservations
+```
+
+---
+
+### createInvoice()
+
+Creates an invoice object for a reservation.
+
+**Signature:**
+```javascript
+function createInvoice(hotel, reservation): Invoice
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object
+</ParamField>
+
+<ParamField path="reservation" type="Reservation" required>
+  The reservation to create an invoice for
+</ParamField>
+
+<ResponseField name="return" type="Invoice">
+  Invoice object with the following structure:
+  - `reservationId`: The reservation ID
+  - `guest`: Guest information
+  - `room`: Object with room number and type
+  - `checkIn`: Check-in date
+  - `checkOut`: Check-out date
+  - `price`: Object with room price, extras price, and total
+  - `emisionDate`: Invoice emission date
+</ResponseField>
+
+**Example:**
+```javascript
+import { createInvoice, getReservationById } from './utils/utils.js'
+
+const reservation = getReservationById(hotel, 'RES-123')
+const invoice = createInvoice(hotel, reservation)
+
+console.log(invoice)
+// {
+//   reservationId: 'RES-123',
+//   guest: { name: 'John Doe', ... },
+//   room: { number: 101, type: 'double' },
+//   checkIn: '2026-03-10',
+//   checkOut: '2026-03-15',
+//   price: {
+//     room: 500,
+//     extras: 50,
+//     total: 550
+//   },
+//   emisionDate: '2026-03-03'
+// }
+```
+
+---
+
+### getCancellationCharge()
+
+Calculates the cancellation penalty based on how close to check-in the cancellation occurs.
+
+**Signature:**
+```javascript
+function getCancellationCharge(reservation): number | undefined
+```
+
+<ParamField path="reservation" type="Reservation">
+  The reservation to calculate cancellation charge for
+</ParamField>
+
+<ResponseField name="return" type="number | undefined">
+  The cancellation charge amount based on the cancellation policy:
+  - Less than 3 days before check-in: 100% of total price
+  - 3-7 days before check-in: 50% of total price
+  - 8 or more days before check-in: No charge (0)
+  - Returns undefined if reservation is undefined
+</ResponseField>
+
+**Example:**
+```javascript
+import { getCancellationCharge } from './utils/utils.js'
+
+const charge = getCancellationCharge(reservation)
+console.log(charge) // 250 (50% charge if 5 days before check-in)
+```
+
+<Note>
+  The cancellation policy applies progressive penalties:
+  - 8+ days before: Free cancellation
+  - 3-7 days before: 50% charge
+  - Less than 3 days: Full charge
+</Note>
+
+---
+
+## Room Management
+
+### getRoomByNumber()
+
+Retrieves a room by its room number.
+
+**Signature:**
+```javascript
+function getRoomByNumber(hotel, roomNumber): Room | undefined
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object containing the rooms array
+</ParamField>
+
+<ParamField path="roomNumber" type="number" required>
+  The room number to search for
+</ParamField>
+
+<ResponseField name="return" type="Room | undefined">
+  The room object if found, otherwise undefined
+</ResponseField>
+
+**Example:**
+```javascript
+import { getRoomByNumber } from './utils/utils.js'
+
+const room = getRoomByNumber(hotel, 101)
+console.log(room.type) // "double"
+```
+
+---
+
+### getRoomsByStatus()
+
+Filters rooms by their current status.
+
+**Signature:**
+```javascript
+function getRoomsByStatus(rooms, status): Room[]
+```
+
+<ParamField path="rooms" type="Room[]" required>
+  Array of room objects to filter
+</ParamField>
+
+<ParamField path="status" type="string" required>
+  The status to filter by (e.g., 'available', 'occupied', 'maintenance')
+</ParamField>
+
+<ResponseField name="return" type="Room[]">
+  Array of rooms matching the specified status
+</ResponseField>
+
+**Example:**
+```javascript
+import { getRoomsByStatus } from './utils/utils.js'
+import { ROOM_STATUS } from './utils/constants.js'
+
+const availableRooms = getRoomsByStatus(hotel.rooms, ROOM_STATUS.AVAILABLE)
+console.log(availableRooms.length) // Number of available rooms
+```
+
+---
+
+### getRoomsByType()
+
+Filters rooms by their type.
+
+**Signature:**
+```javascript
+function getRoomsByType(rooms, type): Room[]
+```
+
+<ParamField path="rooms" type="Room[]" required>
+  Array of room objects to filter
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  The room type to filter by (e.g., 'single', 'double', 'suite')
+</ParamField>
+
+<ResponseField name="return" type="Room[]">
+  Array of rooms matching the specified type
+</ResponseField>
+
+**Example:**
+```javascript
+import { getRoomsByType } from './utils/utils.js'
+import { ROOM_TYPE } from './utils/constants.js'
+
+const suites = getRoomsByType(hotel.rooms, ROOM_TYPE.SUITE)
+console.log(suites) // All suite rooms
+```
+
+---
+
+### isRoomAvailable()
+
+Checks if a specific room is available for a given date range.
+
+**Signature:**
+```javascript
+function isRoomAvailable(hotel, checkIn, checkOut, roomNumber): boolean
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object
+</ParamField>
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The check-in date
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The check-out date
+</ParamField>
+
+<ParamField path="roomNumber" type="number" required>
+  The room number to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  True if the room is available for the date range, false if already reserved
+</ResponseField>
+
+**Purpose:**
+Checks if a room number is among the reserved rooms for a specific date range by comparing against confirmed reservations.
+
+**Example:**
+```javascript
+import { isRoomAvailable } from './utils/utils.js'
+
+const available = isRoomAvailable(
+  hotel,
+  Temporal.PlainDate.from('2026-03-10'),
+  Temporal.PlainDate.from('2026-03-15'),
+  101
+)
+
+if (available) {
+  console.log('Room 101 is available for these dates')
+}
+```
+
+---
+
+### getReservedRoomsByDate()
+
+Retrieves all reserved room numbers for a specific date range.
+
+**Signature:**
+```javascript
+function getReservedRoomsByDate(hotel, checkIn, checkOut): Set<number>
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object
+</ParamField>
+
+<ParamField path="checkIn" type="Temporal.PlainDate" required>
+  The check-in date
+</ParamField>
+
+<ParamField path="checkOut" type="Temporal.PlainDate" required>
+  The check-out date
+</ParamField>
+
+<ResponseField name="return" type="Set<number>">
+  A Set of room numbers that are reserved for the date range
+</ResponseField>
+
+**Purpose:**
+Filters confirmed reservations and identifies which room numbers have overlapping dates with the specified range.
+
+**Example:**
+```javascript
+import { getReservedRoomsByDate } from './utils/utils.js'
+
+const reservedRooms = getReservedRoomsByDate(
+  hotel,
+  Temporal.PlainDate.from('2026-03-10'),
+  Temporal.PlainDate.from('2026-03-15')
+)
+
+console.log(reservedRooms) // Set { 101, 105, 203 }
+```
+
+---
+
+### getReservedRoomByRoomNumber()
+
+Retrieves the room object for a given reservation.
+
+**Signature:**
+```javascript
+function getReservedRoomByRoomNumber(hotel, reservation): Room | undefined
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object
+</ParamField>
+
+<ParamField path="reservation" type="Reservation" required>
+  The reservation containing the room number
+</ParamField>
+
+<ResponseField name="return" type="Room | undefined">
+  The room object associated with the reservation
+</ResponseField>
+
+**Example:**
+```javascript
+import { getReservedRoomByRoomNumber } from './utils/utils.js'
+
+const room = getReservedRoomByRoomNumber(hotel, reservation)
+console.log(room.number) // 101
+```
+
+---
+
+## Pricing Functions
+
+### getNumberOfNights()
+
+Calculates the number of nights between two dates.
+
+**Signature:**
+```javascript
+function getNumberOfNights(checkInString, checkOutString): number
+```
+
+<ParamField path="checkInString" type="string | Temporal.PlainDate" required>
+  The check-in date (ISO string or PlainDate object)
+</ParamField>
+
+<ParamField path="checkOutString" type="string | Temporal.PlainDate" required>
+  The check-out date (ISO string or PlainDate object)
+</ParamField>
+
+<ResponseField name="return" type="number">
+  The number of nights between check-in and check-out
+</ResponseField>
+
+**Example:**
+```javascript
+import { getNumberOfNights } from './utils/utils.js'
+
+const nights = getNumberOfNights('2026-03-10', '2026-03-15')
+console.log(nights) // 5
+```
+
+---
+
+### getTotalPrice()
+
+Calculates the total room price for a date range.
+
+**Signature:**
+```javascript
+function getTotalPrice(room, checkIn, checkOut): number
+```
+
+<ParamField path="room" type="Room" required>
+  The room object containing pricePerNight
+</ParamField>
+
+<ParamField path="checkIn" type="string | Temporal.PlainDate" required>
+  The check-in date
+</ParamField>
+
+<ParamField path="checkOut" type="string | Temporal.PlainDate" required>
+  The check-out date
+</ParamField>
+
+<ResponseField name="return" type="number">
+  The total price (pricePerNight × numberOfNights)
+</ResponseField>
+
+**Example:**
+```javascript
+import { getTotalPrice } from './utils/utils.js'
+
+const total = getTotalPrice(
+  room, // { pricePerNight: 100 }
+  '2026-03-10',
+  '2026-03-15'
+)
+console.log(total) // 500 (100 × 5 nights)
+```
+
+---
+
+### getExtrasPrice()
+
+Calculates the total price of extras.
+
+**Signature:**
+```javascript
+function getExtrasPrice(extras): number
+```
+
+<ParamField path="extras" type="Extra[]" required>
+  Array of extra objects, each containing `price` and `quantity` properties
+</ParamField>
+
+<ResponseField name="return" type="number">
+  The sum of all extras (price × quantity for each extra)
+</ResponseField>
+
+**Example:**
+```javascript
+import { getExtrasPrice } from './utils/utils.js'
+
+const extras = [
+  { name: 'Breakfast', price: 15, quantity: 2 },
+  { name: 'Parking', price: 10, quantity: 5 }
+]
+
+const extrasTotal = getExtrasPrice(extras)
+console.log(extrasTotal) // 80 (30 + 50)
+```
+
+---
+
+### updateTotalPriceWithExtras()
+
+Calculates the final total price including extras.
+
+**Signature:**
+```javascript
+function updateTotalPriceWithExtras(reservation, extras): number
+```
+
+<ParamField path="reservation" type="Reservation" required>
+  The reservation object containing the base totalPrice
+</ParamField>
+
+<ParamField path="extras" type="Extra[]" required>
+  Array of extra objects to add to the total
+</ParamField>
+
+<ResponseField name="return" type="number">
+  The updated total price (reservation.totalPrice + extras total)
+</ResponseField>
+
+**Example:**
+```javascript
+import { updateTotalPriceWithExtras } from './utils/utils.js'
+
+const extras = [
+  { name: 'Breakfast', price: 15, quantity: 2 }
+]
+
+const finalPrice = updateTotalPriceWithExtras(
+  reservation, // { totalPrice: 500 }
+  extras
+)
+console.log(finalPrice) // 530
+```
+
+---
+
+## History Management
+
+### getReservationsPlusHistory()
+
+Combines active reservations and historical reservations.
+
+**Signature:**
+```javascript
+function getReservationsPlusHistory(hotel): Reservation[]
+```
+
+<ParamField path="hotel" type="Hotel" required>
+  The hotel object containing reservations and history arrays
+</ParamField>
+
+<ResponseField name="return" type="Reservation[]">
+  A deep clone of all reservations (active + history)
+</ResponseField>
+
+**Purpose:**
+Creates a combined array of both active and archived reservations using `structuredClone` to prevent mutations to the original arrays.
+
+**Example:**
+```javascript
+import { getReservationsPlusHistory } from './utils/utils.js'
+
+const allReservations = getReservationsPlusHistory(hotel)
+console.log(allReservations.length) // Total count of all reservations
+```
+
+<Info>
+  This function uses `structuredClone` to create a deep copy, ensuring that modifications to the returned array don't affect the original hotel data.
+</Info>

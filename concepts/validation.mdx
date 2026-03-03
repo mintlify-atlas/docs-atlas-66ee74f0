@@ -1,0 +1,372 @@
+---
+title: 'Validation Rules'
+description: 'Input validation and business rule enforcement in JS Mini Hotel'
+---
+
+JS Mini Hotel implements comprehensive validation to ensure data integrity and prevent invalid reservations. All validation logic is located in `~/workspace/source/utils/validation.js`.
+
+## Date Validation
+
+Date validation ensures that reservations have valid check-in and check-out dates according to business rules.
+
+### Check-in Date Rules
+
+<ParamField path="checkIn" type="string" required>
+  Must be today or a future date (cannot be in the past)
+</ParamField>
+
+**Implementation:** `validation.js:16-19`
+
+```javascript
+export function isDateTodayOrFuture(checkIn) {
+  const now = Temporal.Now.plainDateISO()
+  return Temporal.PlainDate.compare(now, checkIn) <= 0
+}
+```
+
+<Note>
+  The system uses the Temporal API for date handling, which provides more accurate date comparisons than traditional Date objects.
+</Note>
+
+### Check-out Date Rules
+
+<ParamField path="checkOut" type="string" required>
+  Must be after the check-in date
+</ParamField>
+
+**Implementation:** `validation.js:56-58`
+
+```javascript
+export function isEndDateOnOrAfterStartDate(checkIn, checkOut) {
+  return Temporal.PlainDate.compare(checkIn, checkOut) <= 0
+}
+```
+
+<Warning>
+  If check-out is the same as check-in, the reservation will be valid but represent a 0-night stay. The system requires at least 1 night, so check-out must be strictly after check-in.
+</Warning>
+
+### Date Range Validation
+
+**Implementation:** `validation.js:6-11`
+
+```javascript
+export function isValidDateRange(checkIn, checkOut) {
+  return (
+    isDateTodayOrFuture(checkIn) &&
+    isEndDateOnOrAfterStartDate(checkIn, checkOut)
+  )
+}
+```
+
+This function combines both validations:
+1. Check-in is not in the past
+2. Check-out is after check-in
+
+### Night Limit Validation
+
+<ParamField path="nights" type="number" required>
+  Must be between 1 and 14 nights
+</ParamField>
+
+**Implementation:** `validation.js:92-95`
+
+```javascript
+if (getNumberOfNights(checkIn, checkOut) > 14) {
+  validation.status = false
+  validation.message = 'Solo se puede reservar hasta 14 noches.'
+}
+```
+
+<Accordion title="Date Validation Error Messages">
+  | Condition | Error Message |
+  |-----------|---------------|
+  | Check-in in the past | "El rango de fechas no es válido." |
+  | Check-out before check-in | "El rango de fechas no es válido." |
+  | More than 14 nights | "Solo se puede reservar hasta 14 noches." |
+</Accordion>
+
+---
+
+## Guest Data Validation
+
+All guest information must pass validation before a reservation can be created. Guest data is validated using regex patterns.
+
+### Email Validation
+
+<ParamField path="guest.email" type="string" required>
+  Must match standard email format
+</ParamField>
+
+**Regex Pattern:** `validation.js:116`
+
+```javascript
+const pattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+```
+
+**Pattern Breakdown:**
+- `^[a-zA-Z0-9._-]+` - Starts with alphanumeric characters, dots, underscores, or hyphens
+- `@` - Required @ symbol
+- `[a-zA-Z0-9.-]+` - Domain name with alphanumeric, dots, or hyphens
+- `\.` - Required dot before TLD
+- `[a-zA-Z]{2,}$` - Top-level domain (minimum 2 letters)
+
+**Valid examples:**
+- `ana@example.com`
+- `user.name@domain.co.uk`
+- `test_user@sub.domain.com`
+
+**Invalid examples:**
+- `invalid.email` (missing @)
+- `@domain.com` (missing local part)
+- `user@domain` (missing TLD)
+
+### DNI Validation
+
+<ParamField path="guest.dni" type="string" required>
+  Must match Spanish DNI format (1-8 digits followed by a letter)
+</ParamField>
+
+**Regex Pattern:** `validation.js:122`
+
+```javascript
+const pattern = /^\d{1,8}[A-Za-z]$/
+```
+
+**Pattern Breakdown:**
+- `^\d{1,8}` - Starts with 1 to 8 digits
+- `[A-Za-z]$` - Ends with a single letter (uppercase or lowercase)
+
+**Valid examples:**
+- `12345678A`
+- `1234567B`
+- `87654321b` (lowercase accepted)
+
+**Invalid examples:**
+- `123456789A` (too many digits)
+- `12345678` (missing letter)
+- `A12345678` (letter at wrong position)
+
+<Note>
+  The DNI validation only checks the format, not the validity of the check letter. A full DNI validation would verify that the letter matches the DNI number using the modulo-23 algorithm.
+</Note>
+
+### Phone Validation
+
+<ParamField path="guest.phone" type="string" required>
+  Must match international or national phone format
+</ParamField>
+
+**Regex Pattern:** `validation.js:127`
+
+```javascript
+const pattern = /^(\+?\d{1,3})?[\s.-]?\d{9}$/
+```
+
+**Pattern Breakdown:**
+- `^(\+?\d{1,3})?` - Optional country code (+ followed by 1-3 digits)
+- `[\s.-]?` - Optional separator (space, dot, or hyphen)
+- `\d{9}$` - Exactly 9 digits for the phone number
+
+**Valid examples:**
+- `+34 612345678`
+- `612345678`
+- `+1.555123456` (note: this passes but may not be a valid US format)
+- `+34-612345678`
+
+**Invalid examples:**
+- `+34 12345` (not enough digits)
+- `12345678` (only 8 digits)
+- `++34 612345678` (double plus sign)
+
+<Warning>
+  The phone validation is permissive and accepts various formats. It validates the structure but not whether the phone number is actually valid for a specific country.
+</Warning>
+
+### Guest Validation Function
+
+**Implementation:** `validation.js:107-113`
+
+```javascript
+function validateGuest(guest) {
+  if (!isValidEmail(guest.email)) return false
+  if (!isValidDNI(guest.dni)) return false
+  if (!isValidPhone(guest.phone)) return false
+
+  return true
+}
+```
+
+All three fields must pass validation for the guest data to be accepted.
+
+<Accordion title="Guest Validation Error">
+  If any guest field is invalid, the reservation validation returns:
+  
+  ```javascript
+  {
+    status: false,
+    message: 'Los datos del huesped no son válidos'
+  }
+  ```
+</Accordion>
+
+---
+
+## Room Availability Validation
+
+Before creating a reservation, the system validates that the requested room exists and is available.
+
+### Room Existence
+
+<ParamField path="roomNumber" type="number" required>
+  Room number must exist in the hotel's room inventory
+</ParamField>
+
+**Implementation:** `validation.js:75-80`
+
+```javascript
+const isRoom = getRoomByNumber(hotel, roomNumber)
+
+if (!isRoom) {
+  validation.status = false
+  validation.message = `La habitación número ${roomNumber} no existe.`
+}
+```
+
+### Room Availability
+
+<ParamField path="availability" type="boolean" required>
+  Room must not have conflicting reservations for the requested dates
+</ParamField>
+
+**Implementation:** `validation.js:82-87`
+
+```javascript
+const isAvailable = isRoomAvailable(hotel, checkIn, checkOut, roomNumber)
+
+if (!isAvailable) {
+  validation.status = false
+  validation.message = `La habitación número ${roomNumber} está reservada para esas fechas.`
+}
+```
+
+<Note>
+  A room is considered unavailable if there's any reservation that overlaps with the requested dates, regardless of reservation status (confirmed, checked-in, or occupied).
+</Note>
+
+### Date Range Overlap
+
+The availability check determines if two date ranges overlap:
+
+**Overlap occurs when:**
+- Existing reservation's check-in falls within the requested dates, OR
+- Existing reservation's check-out falls within the requested dates, OR
+- Requested dates fall entirely within an existing reservation
+
+**No overlap when:**
+- Requested check-in equals existing check-out (same-day turnover allowed)
+- Requested check-out equals existing check-in (same-day turnover allowed)
+
+---
+
+## Complete Reservation Validation
+
+The `validateReservation()` function performs all validations before creating a reservation.
+
+**Implementation:** `validation.js:63-102`
+
+```javascript
+export function validateReservation(
+  hotel,
+  roomNumber,
+  guestData,
+  checkIn,
+  checkOut,
+) {
+  const validation = {
+    status: true,
+    message: '',
+  }
+
+  const isRoom = getRoomByNumber(hotel, roomNumber)
+  if (!isRoom) {
+    validation.status = false
+    validation.message = `La habitación número ${roomNumber} no existe.`
+  }
+
+  const isAvailable = isRoomAvailable(hotel, checkIn, checkOut, roomNumber)
+  if (!isAvailable) {
+    validation.status = false
+    validation.message = `La habitación número ${roomNumber} está reservada para esas fechas.`
+  }
+  
+  if (!isValidDateRange(checkIn, checkOut)) {
+    validation.status = false
+    validation.message = 'El rango de fechas no es válido.'
+  }
+  
+  if (getNumberOfNights(checkIn, checkOut) > 14) {
+    validation.status = false
+    validation.message = 'Solo se puede reservar hasta 14 noches.'
+  }
+  
+  if (!validateGuest(guestData)) {
+    validation.status = false
+    validation.message = 'Los datos del huesped no son válidos'
+  }
+
+  return validation
+}
+```
+
+### Validation Order
+
+Validations are performed in this sequence:
+
+1. **Room existence** - Check if room number is valid
+2. **Room availability** - Check if room is free for the dates
+3. **Date range** - Check if dates are valid (not in past, check-out after check-in)
+4. **Night limit** - Check if stay is between 1-14 nights
+5. **Guest data** - Validate email, DNI, and phone
+
+<Warning>
+  The validation function returns on the first error encountered. If multiple validations fail, only the first error message is returned.
+</Warning>
+
+### Validation Response
+
+The function returns an object with validation status:
+
+```javascript
+{
+  status: true,   // or false if validation failed
+  message: ''     // error message if status is false
+}
+```
+
+**Success response:**
+```javascript
+{ status: true, message: '' }
+```
+
+**Error response examples:**
+```javascript
+{ status: false, message: 'La habitación número 999 no existe.' }
+{ status: false, message: 'La habitación número 101 está reservada para esas fechas.' }
+{ status: false, message: 'El rango de fechas no es válido.' }
+{ status: false, message: 'Solo se puede reservar hasta 14 noches.' }
+{ status: false, message: 'Los datos del huesped no son válidos' }
+```
+
+<Accordion title="Summary of All Validation Rules">
+  | Category | Rule | Error Message |
+  |----------|------|---------------|
+  | Room | Room must exist | "La habitación número {number} no existe." |
+  | Room | Room must be available | "La habitación número {number} está reservada para esas fechas." |
+  | Dates | Check-in not in past | "El rango de fechas no es válido." |
+  | Dates | Check-out after check-in | "El rango de fechas no es válido." |
+  | Dates | Maximum 14 nights | "Solo se puede reservar hasta 14 noches." |
+  | Guest | Valid email format | "Los datos del huesped no son válidos" |
+  | Guest | Valid DNI format | "Los datos del huesped no son válidos" |
+  | Guest | Valid phone format | "Los datos del huesped no son válidos" |
+</Accordion>

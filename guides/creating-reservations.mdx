@@ -1,0 +1,325 @@
+---
+title: Creating Reservations
+description: Learn how to search for available rooms and create reservations with automatic pricing calculations
+---
+
+This guide walks you through the complete process of searching for available rooms and creating reservations in the JS Mini Hotel system.
+
+## Overview
+
+The reservation workflow consists of three main steps:
+1. Search for available rooms by date and type
+2. Create a reservation with guest information
+3. Handle validation errors and confirmations
+
+## Searching for Available Rooms
+
+Before creating a reservation, you need to find available rooms for your desired dates and room type.
+
+<Steps>
+  <Step title="Define search parameters">
+    Specify the check-in date, check-out date, and room type (optional).
+
+    ```js
+    const checkIn = '2026-03-19'
+    const checkOut = '2026-03-19'
+    const roomType = 'single' // 'single', 'double', or 'suite'
+    ```
+  </Step>
+
+  <Step title="Search for availability">
+    Use the `searchAvailableRooms()` function to find available rooms.
+
+    ```js main.js:104-113
+    const availableRooms = searchAvailableRooms(
+      hotel,
+      '2026-03-19',
+      '2026-03-19',
+      'single'
+    )
+    ```
+
+    This function:
+    - Filters rooms by the specified type
+    - Checks which rooms are reserved for the date range
+    - Returns only rooms that are not reserved
+  </Step>
+
+  <Step title="Review available rooms">
+    The function returns an array of room objects:
+
+    ```js
+    [
+      {
+        number: 101,
+        type: 'single',
+        pricePerNight: 50,
+        status: 'available',
+        features: ['wifi', 'tv']
+      },
+      // ... more rooms
+    ]
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  A room is considered unavailable if there's a confirmed reservation where the dates overlap with your search range.
+</Note>
+
+## Creating a Reservation
+
+Once you've identified an available room, you can create a reservation.
+
+<Steps>
+  <Step title="Prepare guest data">
+    Collect all required guest information:
+
+    ```js main.js:51-56
+    const guestData = {
+      name: 'Ana García',
+      email: 'ana@example.com',
+      phone: '+34 612345678',
+      dni: '12345678A'
+    }
+    ```
+
+    <Warning>
+      All guest fields are validated:
+      - **Email**: Must match email regex pattern
+      - **Phone**: Must match phone regex pattern
+      - **DNI**: Must match DNI regex pattern
+    </Warning>
+  </Step>
+
+  <Step title="Create the reservation">
+    Call `createReservation()` with the hotel, room number, guest data, and dates:
+
+    ```js main.js:46-60
+    const reservation = createReservation(
+      hotel,
+      301,
+      {
+        name: 'Ana García',
+        email: 'ana@example.com',
+        phone: '+34 612345678',
+        dni: '12345678A'
+      },
+      '2026-04-10',
+      '2026-04-15'
+    )
+    ```
+  </Step>
+
+  <Step title="Validation and response">
+    The function performs several validations before creating the reservation:
+
+    ```js main.js:120-149
+    function createReservation(hotel, roomNumber, guestData, checkIn, checkOut) {
+      // Validate the reservation
+      const isValidReservation = validateReservation(
+        hotel,
+        roomNumber,
+        guestData,
+        checkIn,
+        checkOut,
+      )
+      if (isValidReservation.status === false) {
+        console.log(isValidReservation.message)
+        return
+      }
+      
+      const room = getRoomByNumber(hotel, roomNumber)
+      
+      // Create reservation object
+      const reservation = {
+        id: createUniqueReservationId(),
+        roomNumber,
+        guest: guestData,
+        checkIn: checkIn.toString(),
+        checkOut: checkOut.toString(),
+        nights: getNumberOfNights(checkIn, checkOut),
+        totalPrice: getTotalPrice(room, checkIn, checkOut),
+        status: 'confirmed',
+        extras: []
+      }
+      
+      hotel.reservations.push(reservation)
+      return reservation
+    }
+    ```
+  </Step>
+</Steps>
+
+## Automatic Calculations
+
+The system automatically calculates key reservation details:
+
+<Accordion title="Number of Nights">
+  The system calculates the number of nights based on check-in and check-out dates:
+
+  ```js utils.js:49-54
+  export function getNumberOfNights(checkInString, checkOutString) {
+    const checkIn = Temporal.PlainDate.from(checkInString)
+    const checkOut = Temporal.PlainDate.from(checkOutString)
+
+    return checkOut.dayOfYear - checkIn.dayOfYear
+  }
+  ```
+
+  **Example**: Check-in on April 10, check-out on April 15 = 5 nights
+</Accordion>
+
+<Accordion title="Total Price">
+  The total price is calculated by multiplying the room's nightly rate by the number of nights:
+
+  ```js utils.js:88-94
+  export function getTotalPrice(room, checkIn, checkOut) {
+    const nights = getNumberOfNights(
+      Temporal.PlainDate.from(checkIn),
+      Temporal.PlainDate.from(checkOut)
+    )
+    return room.pricePerNight * nights
+  }
+  ```
+
+  **Price by room type**:
+  - Single: €50/night
+  - Double: €80/night
+  - Suite: €150/night
+</Accordion>
+
+<Accordion title="Reservation ID">
+  Each reservation receives a unique ID generated from a timestamp and random number:
+
+  ```js utils.js:4-13
+  export function createUniqueReservationId() {
+    const timestamp = Temporal.Now.instant()
+      .toString()
+      .replaceAll('-', '')
+      .replaceAll(':', '')
+      .replaceAll('.', '')
+
+    const random = Math.floor(Math.random() * 100)
+    return `RES-${timestamp}-${random}`
+  }
+  ```
+
+  **Example**: `RES-20260410T143027123456789Z-42`
+</Accordion>
+
+## Handling Validation Errors
+
+The `validateReservation()` function checks multiple conditions before allowing a reservation to be created:
+
+<Tabs>
+  <Tab title="Room Availability">
+    The room must exist and be available for the specified dates:
+
+    ```js
+    // Error if room is already reserved
+    {
+      status: false,
+      message: 'Room is not available for these dates'
+    }
+    ```
+  </Tab>
+
+  <Tab title="Date Validation">
+    Check-in and check-out dates must be valid:
+
+    ```js
+    // Check-in cannot be in the past
+    // Check-out must be after check-in
+    // Minimum 1 night, maximum 14 nights
+    ```
+
+    <Warning>
+      **Date requirements**:
+      - Check-in cannot be in the past
+      - Check-out must be after check-in
+      - Minimum stay: 1 night
+      - Maximum stay: 14 nights
+    </Warning>
+  </Tab>
+
+  <Tab title="Guest Data">
+    All guest information must pass regex validation:
+
+    ```js
+    // Email must match email regex
+    // Phone must match phone regex (e.g., +34 612345678)
+    // DNI must match DNI regex (e.g., 12345678A)
+    ```
+  </Tab>
+</Tabs>
+
+## Complete Example
+
+Here's a complete workflow from searching to creating a reservation:
+
+<CodeGroup>
+```js Full Example
+// 1. Search for available rooms
+const availableRooms = searchAvailableRooms(
+  hotel,
+  '2026-04-10',
+  '2026-04-15',
+  'suite'
+)
+
+console.log(`Found ${availableRooms.length} available suites`)
+
+// 2. Create reservation with the first available room
+if (availableRooms.length > 0) {
+  const reservation = createReservation(
+    hotel,
+    availableRooms[0].number, // Room 301
+    {
+      name: 'Ana García',
+      email: 'ana@example.com',
+      phone: '+34 612345678',
+      dni: '12345678A'
+    },
+    '2026-04-10',
+    '2026-04-15'
+  )
+
+  console.log('Reservation created:', reservation)
+}
+```
+
+```js Expected Output
+{
+  id: 'RES-20260410T120000000000000Z-73',
+  roomNumber: 301,
+  guest: {
+    name: 'Ana García',
+    email: 'ana@example.com',
+    phone: '+34 612345678',
+    dni: '12345678A'
+  },
+  checkIn: '2026-04-10',
+  checkOut: '2026-04-15',
+  nights: 5,
+  totalPrice: 750, // 5 nights × €150/night
+  status: 'confirmed',
+  extras: []
+}
+```
+</CodeGroup>
+
+<Tip>
+  Always search for available rooms before attempting to create a reservation to ensure the room is available for your dates.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Managing Extras" icon="plus" href="/guides/managing-extras">
+    Learn how to add breakfast, parking, and other services to reservations
+  </Card>
+  <Card title="Cancellation Policy" icon="calendar-xmark" href="/guides/cancellation-policy">
+    Understand cancellation fees and how to cancel reservations
+  </Card>
+</CardGroup>

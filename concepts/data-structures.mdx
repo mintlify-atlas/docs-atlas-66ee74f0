@@ -1,0 +1,304 @@
+---
+title: 'Data Structures'
+description: 'Understanding the core data structures in JS Mini Hotel'
+---
+
+JS Mini Hotel uses three main data structures to manage hotel operations: Hotel, Room, and Reservation objects. Each structure has a specific purpose and schema.
+
+## Hotel Object
+
+The Hotel object is the root structure that contains all hotel information, rooms, and reservations.
+
+<ParamField path="name" type="string" required>
+  The name of the hotel (e.g., "Hotel Keepcoding")
+</ParamField>
+
+<ParamField path="rooms" type="array" required>
+  Array of Room objects representing all rooms in the hotel
+</ParamField>
+
+<ParamField path="reservations" type="array" required>
+  Array of active Reservation objects (confirmed or checked-in status)
+</ParamField>
+
+<ParamField path="history" type="array" required>
+  Array of completed Reservation objects (checked-out or cancelled status)
+</ParamField>
+
+### Example Hotel Object
+
+```json
+{
+  "name": "Hotel Keepcoding",
+  "rooms": [...],
+  "reservations": [...],
+  "history": [...]
+}
+```
+
+<Note>
+  The `reservations` array contains only active reservations, while `history` stores all past reservations for reporting and guest history.
+</Note>
+
+---
+
+## Room Object
+
+Each room in the hotel has a specific structure that defines its type, pricing, status, and features.
+
+<ParamField path="number" type="number" required>
+  Unique room number identifier (e.g., 101, 201, 302)
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  Room type: `"single"`, `"double"`, or `"suite"`
+</ParamField>
+
+<ParamField path="pricePerNight" type="number" required>
+  Price per night in euros based on room type:
+  - Single: €50
+  - Double: €80
+  - Suite: €150
+</ParamField>
+
+<ParamField path="status" type="string" required>
+  Current room status: `"available"`, `"occupied"`, or `"maintenance"`
+</ParamField>
+
+<ParamField path="features" type="array" required>
+  Array of strings listing room amenities (e.g., `["wifi", "tv", "minibar"]`)
+</ParamField>
+
+### Real Examples from rooms.json
+
+<Accordion title="Single Room (Room 101)">
+```json
+{
+  "number": 101,
+  "type": "single",
+  "pricePerNight": 50,
+  "status": "available",
+  "features": [
+    "wifi",
+    "tv"
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Double Room (Room 201)">
+```json
+{
+  "number": 201,
+  "type": "double",
+  "pricePerNight": 80,
+  "status": "occupied",
+  "features": [
+    "wifi",
+    "tv",
+    "minibar"
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Suite (Room 301)">
+```json
+{
+  "number": 301,
+  "type": "suite",
+  "pricePerNight": 150,
+  "status": "available",
+  "features": [
+    "wifi",
+    "tv"
+  ]
+}
+```
+</Accordion>
+
+### Room Types
+
+The system supports three room types, each with different pricing and features:
+
+| Type | Price per Night | Common Features |
+|------|----------------|------------------|
+| Single | €50 | wifi, tv |
+| Double | €80 | wifi, tv, minibar |
+| Suite | €150 | wifi, tv, minibar, jacuzzi |
+
+---
+
+## Reservation Object
+
+Reservations track guest bookings, including guest information, dates, pricing, and extras.
+
+<ParamField path="id" type="string" required>
+  Unique reservation identifier (e.g., "RES-001")
+</ParamField>
+
+<ParamField path="roomNumber" type="number" required>
+  The room number assigned to this reservation
+</ParamField>
+
+<ParamField path="guest" type="object" required>
+  Guest information object containing:
+  - `name`: Full name of the guest
+  - `email`: Email address (validated with regex)
+  - `phone`: Phone number in format "+34 612345678" (validated with regex)
+  - `dni`: Spanish ID in format "12345678A" (validated with regex)
+</ParamField>
+
+<ParamField path="checkIn" type="string" required>
+  Check-in date in ISO format (YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="checkOut" type="string" required>
+  Check-out date in ISO format (YYYY-MM-DD)
+</ParamField>
+
+<ParamField path="nights" type="number" required>
+  Number of nights (automatically calculated from check-in and check-out dates)
+</ParamField>
+
+<ParamField path="totalPrice" type="number" required>
+  Total price in euros, including base room cost and extras
+</ParamField>
+
+<ParamField path="status" type="string" required>
+  Reservation status: `"confirmed"`, `"checked-in"`, `"checked-out"`, or `"cancelled"`
+</ParamField>
+
+<ParamField path="extras" type="array" required>
+  Array of extra services. Each extra has:
+  - `name`: Service name (e.g., "Breakfast", "Parking")
+  - `price`: Price per unit in euros
+  - `quantity`: Number of units
+</ParamField>
+
+### Real Examples from reservations.json
+
+<Accordion title="Reservation with Multiple Extras (RES-001)">
+```json
+{
+  "id": "RES-001",
+  "roomNumber": 101,
+  "guest": {
+    "name": "Ana García",
+    "email": "ana@example.com",
+    "phone": "+34 612345678",
+    "dni": "12345678A"
+  },
+  "checkIn": "2026-03-01",
+  "checkOut": "2026-03-05",
+  "nights": 5,
+  "totalPrice": 250,
+  "status": "confirmed",
+  "extras": [
+    {
+      "name": "Breakfast",
+      "price": 10,
+      "quantity": 5
+    },
+    {
+      "name": "Parking",
+      "price": 15,
+      "quantity": 5
+    }
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Reservation with Late Checkout (RES-003)">
+```json
+{
+  "id": "RES-003",
+  "roomNumber": 103,
+  "guest": {
+    "name": "María López",
+    "email": "maria@example.com",
+    "phone": "+34 612345678",
+    "dni": "11223344C"
+  },
+  "checkIn": "2026-04-05",
+  "checkOut": "2026-04-10",
+  "nights": 5,
+  "totalPrice": 250,
+  "status": "confirmed",
+  "extras": [
+    {
+      "name": "Breakfast",
+      "price": 10,
+      "quantity": 5
+    },
+    {
+      "name": "Late Checkout",
+      "price": 20,
+      "quantity": 1
+    }
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Reservation without Extras (RES-004)">
+```json
+{
+  "id": "RES-004",
+  "roomNumber": 201,
+  "guest": {
+    "name": "Carlos Sánchez",
+    "email": "carlos@example.com",
+    "phone": "+34 612345678",
+    "dni": "55667788D"
+  },
+  "checkIn": "2026-01-02",
+  "checkOut": "2026-01-05",
+  "nights": 4,
+  "totalPrice": 320,
+  "status": "confirmed",
+  "extras": []
+}
+```
+</Accordion>
+
+### Guest Object Structure
+
+The guest object within each reservation contains validated personal information:
+
+<ParamField path="guest.name" type="string" required>
+  Full name of the guest
+</ParamField>
+
+<ParamField path="guest.email" type="string" required>
+  Email address (must match pattern: `^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+</ParamField>
+
+<ParamField path="guest.phone" type="string" required>
+  Phone number (must match pattern: `^(\+?\d{1,3})?[\s.-]?\d{9}$`)
+</ParamField>
+
+<ParamField path="guest.dni" type="string" required>
+  Spanish ID number (must match pattern: `^\d{1,8}[A-Za-z]$`)
+</ParamField>
+
+<Warning>
+  All guest data fields are validated before creating a reservation. Invalid data will cause the reservation to be rejected.
+</Warning>
+
+### Extras Array Structure
+
+Each item in the `extras` array represents an additional service:
+
+```json
+{
+  "name": "Breakfast",
+  "price": 10,
+  "quantity": 5
+}
+```
+
+<Note>
+  The `totalPrice` field in the reservation includes both the base room cost (nights × pricePerNight) and all extras (sum of price × quantity for each extra).
+</Note>

@@ -1,0 +1,320 @@
+---
+title: Constants
+description: Constant values for reservation status, room status, and room types used throughout the hotel management system
+---
+
+## RESERVATION_STATUS
+
+Defines all possible states of a reservation throughout its lifecycle.
+
+**Exported Object:**
+```javascript
+export const RESERVATION_STATUS = {
+  CONFIRMED: 'confirmed',
+  CHECKED_IN: 'checked-in',
+  CHECKED_OUT: 'checked-out',
+  OCCUPIED: 'occupied',
+  CANCELLED: 'cancelled',
+}
+```
+
+### Status Values
+
+<ParamField path="CONFIRMED" type="string" default="'confirmed'">
+  Reservation has been confirmed but guest has not yet checked in
+</ParamField>
+
+<ParamField path="CHECKED_IN" type="string" default="'checked-in'">
+  Guest has checked in and is currently staying at the hotel
+</ParamField>
+
+<ParamField path="CHECKED_OUT" type="string" default="'checked-out'">
+  Guest has checked out and the reservation is complete
+</ParamField>
+
+<ParamField path="OCCUPIED" type="string" default="'occupied'">
+  The reservation is actively occupying the room
+</ParamField>
+
+<ParamField path="CANCELLED" type="string" default="'cancelled'">
+  The reservation has been cancelled
+</ParamField>
+
+### Usage
+
+Use these constants instead of hardcoded strings to ensure consistency across the application.
+
+**Example:**
+```javascript
+import { RESERVATION_STATUS } from './utils/constants.js'
+
+// Create a new reservation
+const reservation = {
+  id: 'RES-123',
+  status: RESERVATION_STATUS.CONFIRMED,
+  // ... other properties
+}
+
+// Check reservation status
+if (reservation.status === RESERVATION_STATUS.CONFIRMED) {
+  console.log('Reservation is confirmed')
+}
+
+// Update status when guest checks in
+reservation.status = RESERVATION_STATUS.CHECKED_IN
+
+// Filter confirmed reservations
+const confirmedReservations = hotel.reservations.filter(
+  res => res.status === RESERVATION_STATUS.CONFIRMED
+)
+```
+
+### Status Lifecycle
+
+Typical flow of a reservation through different statuses:
+
+1. **CONFIRMED** - Initial state when reservation is created
+2. **CHECKED_IN** - Guest arrives and checks in
+3. **OCCUPIED** - During the guest's stay
+4. **CHECKED_OUT** - Guest completes checkout
+
+Alternative flow:
+- **CONFIRMED** → **CANCELLED** - Reservation cancelled before check-in
+
+<Note>
+  Always use these constants rather than string literals to prevent typos and make refactoring easier.
+</Note>
+
+---
+
+## ROOM_STATUS
+
+Defines all possible operational states of a hotel room.
+
+**Exported Object:**
+```javascript
+export const ROOM_STATUS = {
+  AVAILABLE: 'available',
+  OCCUPIED: 'occupied',
+  MAINTENANCE: 'maintenance',
+}
+```
+
+### Status Values
+
+<ParamField path="AVAILABLE" type="string" default="'available'">
+  Room is ready and available for new reservations
+</ParamField>
+
+<ParamField path="OCCUPIED" type="string" default="'occupied'">
+  Room is currently occupied by a guest
+</ParamField>
+
+<ParamField path="MAINTENANCE" type="string" default="'maintenance'">
+  Room is under maintenance and not available for booking
+</ParamField>
+
+### Usage
+
+**Example:**
+```javascript
+import { ROOM_STATUS } from './utils/constants.js'
+import { getRoomsByStatus } from './utils/utils.js'
+
+// Set room status
+const room = {
+  number: 101,
+  status: ROOM_STATUS.AVAILABLE,
+  // ... other properties
+}
+
+// Check if room is available
+if (room.status === ROOM_STATUS.AVAILABLE) {
+  console.log('Room is available for booking')
+}
+
+// Mark room as occupied
+room.status = ROOM_STATUS.OCCUPIED
+
+// Get all available rooms
+const availableRooms = getRoomsByStatus(
+  hotel.rooms,
+  ROOM_STATUS.AVAILABLE
+)
+
+// Get rooms in maintenance
+const maintenanceRooms = getRoomsByStatus(
+  hotel.rooms,
+  ROOM_STATUS.MAINTENANCE
+)
+```
+
+### When to Use Each Status
+
+**AVAILABLE:**
+- Room is clean and ready for check-in
+- No active reservations for current date
+- All maintenance completed
+
+**OCCUPIED:**
+- Guest has checked in
+- Room is currently in use
+- Do not assign new reservations
+
+**MAINTENANCE:**
+- Room requires repairs or cleaning
+- Temporarily unavailable for booking
+- Should be excluded from availability searches
+
+<Info>
+  Room status should be updated when guests check in/out and when maintenance is scheduled or completed.
+</Info>
+
+---
+
+## ROOM_TYPE
+
+Defines the different types of rooms available in the hotel.
+
+**Exported Object:**
+```javascript
+export const ROOM_TYPE = {
+  SINGLE: 'single',
+  DOUBLE: 'double',
+  SUITE: 'suite',
+}
+```
+
+### Type Values
+
+<ParamField path="SINGLE" type="string" default="'single'">
+  Single room for one guest
+</ParamField>
+
+<ParamField path="DOUBLE" type="string" default="'double'">
+  Double room for two guests
+</ParamField>
+
+<ParamField path="SUITE" type="string" default="'suite'">
+  Suite room with premium amenities
+</ParamField>
+
+### Usage
+
+**Example:**
+```javascript
+import { ROOM_TYPE } from './utils/constants.js'
+import { getRoomsByType } from './utils/utils.js'
+
+// Define a room
+const room = {
+  number: 101,
+  type: ROOM_TYPE.DOUBLE,
+  pricePerNight: 100,
+  // ... other properties
+}
+
+// Check room type
+if (room.type === ROOM_TYPE.SUITE) {
+  console.log('Premium suite room')
+}
+
+// Filter rooms by type
+const singleRooms = getRoomsByType(
+  hotel.rooms,
+  ROOM_TYPE.SINGLE
+)
+
+const doubleRooms = getRoomsByType(
+  hotel.rooms,
+  ROOM_TYPE.DOUBLE
+)
+
+const suites = getRoomsByType(
+  hotel.rooms,
+  ROOM_TYPE.SUITE
+)
+
+// Search for available rooms of a specific type
+const availableDoubles = hotel.rooms.filter(
+  room => room.type === ROOM_TYPE.DOUBLE && 
+          room.status === ROOM_STATUS.AVAILABLE
+)
+```
+
+### Room Type Characteristics
+
+**SINGLE:**
+- Designed for one occupant
+- Typically lower price point
+- Smaller room size
+
+**DOUBLE:**
+- Accommodates two guests
+- Standard room type
+- Mid-range pricing
+
+**SUITE:**
+- Premium room category
+- Additional amenities and space
+- Higher price per night
+
+<Note>
+  Room types are fixed properties that define the room's category and should not change during the room's lifecycle, unlike room status which changes frequently.
+</Note>
+
+---
+
+## Import Examples
+
+### Individual Imports
+
+```javascript
+import { RESERVATION_STATUS } from './utils/constants.js'
+import { ROOM_STATUS } from './utils/constants.js'
+import { ROOM_TYPE } from './utils/constants.js'
+```
+
+### Combined Import
+
+```javascript
+import { 
+  RESERVATION_STATUS, 
+  ROOM_STATUS, 
+  ROOM_TYPE 
+} from './utils/constants.js'
+```
+
+### Complete Example
+
+```javascript
+import { 
+  RESERVATION_STATUS, 
+  ROOM_STATUS, 
+  ROOM_TYPE 
+} from './utils/constants.js'
+import { getRoomsByType, getRoomsByStatus } from './utils/utils.js'
+
+// Find available double rooms
+const availableDoubleRooms = hotel.rooms.filter(
+  room => 
+    room.type === ROOM_TYPE.DOUBLE &&
+    room.status === ROOM_STATUS.AVAILABLE
+)
+
+// Count confirmed reservations
+const confirmedCount = hotel.reservations.filter(
+  res => res.status === RESERVATION_STATUS.CONFIRMED
+).length
+
+// Get all suites in maintenance
+const suitesInMaintenance = hotel.rooms.filter(
+  room => 
+    room.type === ROOM_TYPE.SUITE &&
+    room.status === ROOM_STATUS.MAINTENANCE
+)
+```
+
+<Info>
+  Using these constants throughout your codebase ensures type safety, prevents typos, and makes it easy to update values in a single location if needed.
+</Info>
